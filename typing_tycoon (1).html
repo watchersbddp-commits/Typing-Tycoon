@@ -1,0 +1,3382 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>타자 타이쿤 (Typing Tycoon)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: JetBrains Mono & Noto Sans KR -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 60%, #020617 100%);
+            color: #f8fafc;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .font-mono-num {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* 3D 기계식 키캡 스타일 버튼 */
+        .keycap-btn {
+            background: linear-gradient(145deg, #334155, #1e293b);
+            border: 1px solid #475569;
+            box-shadow: 0 4px 0 #0f172a, 0 6px 12px rgba(0, 0, 0, 0.4);
+            transition: all 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .keycap-btn:hover:not(:disabled) {
+            background: linear-gradient(145deg, #3b82f6, #2563eb);
+            border-color: #60a5fa;
+            box-shadow: 0 4px 0 #1d4ed8, 0 6px 16px rgba(59, 130, 246, 0.4);
+            transform: translateY(-1px);
+        }
+        .keycap-btn:active:not(:disabled) {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #0f172a, 0 2px 5px rgba(0, 0, 0, 0.4);
+        }
+        .keycap-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            box-shadow: 0 2px 0 #0f172a;
+            transform: translateY(2px);
+        }
+
+        /* 피버 타임 네온 글로우 애니메이션 */
+        @keyframes feverGlow {
+            0%, 100% {
+                box-shadow: 0 0 18px rgba(245, 158, 11, 0.5), inset 0 0 15px rgba(245, 158, 11, 0.2);
+                border-color: #fbbf24;
+            }
+            50% {
+                box-shadow: 0 0 32px rgba(236, 72, 153, 0.8), inset 0 0 24px rgba(236, 72, 153, 0.3);
+                border-color: #f472b6;
+            }
+        }
+        .fever-active {
+            animation: feverGlow 1s infinite alternate;
+        }
+
+        /* 떠오르는 골드/크리티컬 텍스트 애니메이션 */
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, 0) scale(0.85);
+            }
+            20% {
+                transform: translate(-50%, -14px) scale(1.12);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -65px) scale(1);
+            }
+        }
+        .floating-text {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUp 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            z-index: 50;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+            white-space: nowrap;
+        }
+
+        /* 단어 완료 타격감 펄스 */
+        @keyframes hitPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.012); }
+            100% { transform: scale(1); }
+        }
+        .hit-anim {
+            animation: hitPulse 0.14s ease-out;
+        }
+
+        /* 오타 흔들림 효과 */
+        @keyframes shakeError {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .shake-anim {
+            animation: shakeError 0.2s ease-in-out;
+        }
+
+        /* 제시어 한 줄 고정 (#target-display) 및 가로 중앙 슬라이드 트랙 */
+        #target-word-viewport {
+            width: 100%;
+            min-height: 62px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+        }
+
+        #target-display {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-height: 44px;
+            line-height: 1.3;
+            color: #f8fafc;
+            will-change: transform;
+            transition: transform 0.13s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        #target-word-track {
+            display: inline-flex;
+            align-items: center;
+            white-space: nowrap;
+        }
+
+        @keyframes cursorPulse {
+            0%, 100% { background-color: rgba(251, 191, 36, 0.25); }
+            50% { background-color: rgba(251, 191, 36, 0.48); }
+        }
+        .active-char-cursor {
+            animation: cursorPulse 1s infinite;
+            border-radius: 6px;
+            padding: 0 2px;
+        }
+
+        /* 순수 div 타이핑 디스플레이 커서 깜빡임 */
+        @keyframes caretBlink {
+            0%, 49% { opacity: 1; }
+            50%, 100% { opacity: 0; }
+        }
+        .display-caret {
+            display: inline-block;
+            width: 3px;
+            height: 1.25em;
+            background-color: #fbbf24;
+            border-radius: 2px;
+            margin-left: 2px;
+            vertical-align: middle;
+            animation: caretBlink 0.9s infinite;
+        }
+
+        /* 조합 중인 한글 음절 강조 스타일 */
+        .composing-syllable {
+            background-color: rgba(251, 191, 36, 0.25);
+            border-bottom: 3px solid #fbbf24;
+            border-radius: 4px;
+            padding: 0 2px;
+            color: #fef08a;
+        }
+
+        /* 가상 키보드 반응형 행 및 키캡 (가로 폭 100% 맞춤, 잘림 방지) */
+        .vk-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 4px;
+        }
+
+        .vk-key {
+            flex: 1 1 0%;
+            min-width: 0;
+            background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+            border: 1px solid #475569;
+            box-shadow: 0 3px 0 #0f172a, 0 3px 5px rgba(0, 0, 0, 0.35);
+            transition: transform 0.05s ease, background 0.08s ease, box-shadow 0.05s ease, border-color 0.08s ease;
+            touch-action: manipulation;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .vk-key:hover {
+            border-color: #94a3b8;
+            background: linear-gradient(180deg, #3f4f66 0%, #263449 100%);
+        }
+        .vk-key.pressed,
+        .vk-key:active {
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #0f172a, inset 0 1px 4px rgba(0, 0, 0, 0.6);
+            background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%) !important;
+            border-color: #fde68a !important;
+            color: #0f172a !important;
+        }
+        .vk-key.pressed .vk-sub-char,
+        .vk-key:active .vk-sub-char {
+            color: #1e293b !important;
+        }
+        .vk-key.vk-active-toggle {
+            background: linear-gradient(180deg, #4f46e5 0%, #3730a3 100%);
+            border-color: #818cf8;
+            box-shadow: 0 3px 0 #1e1b4b, 0 0 10px rgba(99, 102, 241, 0.45);
+            color: #ffffff;
+        }
+
+        /* ============================================================================
+           모바일 모드 전용 레이아웃 (한 화면 안에 받아쓰기 + 입력창 + 가상 키보드 모두 수용)
+           ============================================================================ */
+        body.mobile-mode #main-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0.4rem !important;
+            gap: 0.55rem !important;
+        }
+        body.mobile-mode #left-stage-col,
+        body.mobile-mode #right-shop-col,
+        body.mobile-mode #right-dojo-col {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        body.mobile-mode #right-shop-col,
+        body.mobile-mode #right-dojo-col {
+            height: auto !important;
+            min-height: 400px !important;
+            max-height: none !important;
+        }
+        body.mobile-mode #header-bar {
+            padding: 0.35rem 0.5rem !important;
+        }
+        body.mobile-mode #header-inner {
+            gap: 0.35rem !important;
+        }
+        body.mobile-mode #tycoon-tier-bar,
+        body.mobile-mode #dojo-category-bar {
+            padding: 0.45rem 0.6rem !important;
+            border-radius: 0.9rem !important;
+        }
+        body.mobile-mode #typing-stage {
+            padding: 0.55rem 0.6rem !important;
+            min-height: auto !important;
+            border-radius: 1.15rem !important;
+            gap: 0.35rem !important;
+        }
+        body.mobile-mode #word-display-container {
+            padding-top: 0.25rem !important;
+            padding-bottom: 0.25rem !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        body.mobile-mode #current-tier-label {
+            margin-bottom: 0.2rem !important;
+            font-size: 10px !important;
+        }
+        body.mobile-mode #target-word-viewport {
+            min-height: 48px !important;
+            padding-top: 0.45rem !important;
+            padding-bottom: 0.45rem !important;
+            border-radius: 0.85rem !important;
+        }
+        body.mobile-mode #target-display {
+            font-size: 1.45rem !important;
+            min-height: 34px !important;
+        }
+        body.mobile-mode #tycoon-expected-gold-row,
+        body.mobile-mode #dojo-timer-hint-row {
+            margin-top: 0.2rem !important;
+            font-size: 11px !important;
+        }
+        body.mobile-mode #live-typing-display {
+            min-height: 44px !important;
+            padding: 0.4rem 4.3rem 0.4rem 0.65rem !important;
+            font-size: 1rem !important;
+            border-radius: 0.85rem !important;
+        }
+        body.mobile-mode #virtual-keyboard-wrapper {
+            margin-top: 0.25rem !important;
+            padding-top: 0.3rem !important;
+        }
+        body.mobile-mode #virtual-keyboard-rows {
+            padding: 0.25rem !important;
+            gap: 0.25rem !important;
+            border-radius: 0.85rem !important;
+        }
+        body.mobile-mode .vk-row {
+            gap: 3px !important;
+        }
+        body.mobile-mode .vk-key {
+            height: 40px !important;
+            font-size: 0.82rem !important;
+            border-radius: 0.45rem !important;
+            padding: 0 1px !important;
+        }
+        body.mobile-mode .vk-sub-char {
+            display: none !important;
+        }
+        body.mobile-mode .shop-buy-btn {
+            padding: 0.65rem 0.8rem !important;
+            min-width: 88px !important;
+            font-size: 0.78rem !important;
+        }
+
+        /* 커스텀 스크롤바 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- 상단 컴팩트 헤더 / HUD -->
+    <header id="header-bar" class="bg-slate-900/95 backdrop-blur-md border-b border-slate-800 sticky top-0 z-40 px-3 sm:px-4 py-2 shadow-xl w-full">
+        <div id="header-inner" class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            
+            <!-- 좌측: 타이틀 + 모드 전환 스위치 묶음 -->
+            <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/30 text-slate-950 font-black text-base sm:text-lg shrink-0">
+                    <i class="fa-solid fa-keyboard"></i>
+                </div>
+                <h1 class="text-sm sm:text-lg font-black tracking-tight bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-400 bg-clip-text text-transparent mr-0.5">
+                    타자 타이쿤
+                </h1>
+
+                <!-- 💰 타이쿤 | 🎯 수련장 전환 스위치 -->
+                <div class="inline-flex items-center bg-slate-950 p-0.5 rounded-full border border-slate-700/90 shadow-inner" role="group" aria-label="게임 및 수련장 전환">
+                    <button 
+                        type="button" 
+                        id="app-mode-tycoon" 
+                        onclick="switchAppMode('tycoon')" 
+                        class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-amber-500 text-slate-950 shadow cursor-pointer"
+                    >
+                        <span>💰</span><span>타이쿤</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        id="app-mode-dojo" 
+                        onclick="switchAppMode('dojo')" 
+                        class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                        <span>🎯</span><span>수련장</span>
+                    </button>
+                </div>
+
+                <!-- 🇰🇷 한글 | 🇺🇸 영어 타자 언어 스위치 -->
+                <div class="inline-flex items-center bg-slate-950 p-0.5 rounded-full border border-slate-700/90 shadow-inner" role="group" aria-label="한글 및 영어 타자 전환">
+                    <button 
+                        type="button" 
+                        id="lang-btn-ko" 
+                        onclick="setTypingLanguage('ko', true)" 
+                        class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-emerald-500 text-slate-950 shadow cursor-pointer"
+                    >
+                        <span>🇰🇷</span><span>한글</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        id="lang-btn-en" 
+                        onclick="setTypingLanguage('en', true)" 
+                        class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                        <span>🇺🇸</span><span>영어</span>
+                    </button>
+                </div>
+
+                <!-- 🖥️ PC | 📱 모바일 레이아웃 전환 스위치 -->
+                <div class="inline-flex items-center bg-slate-950 p-0.5 rounded-full border border-slate-700/90 shadow-inner" role="group" aria-label="PC 및 모바일 레이아웃 전환">
+                    <button 
+                        type="button" 
+                        id="mode-btn-pc" 
+                        onclick="setViewMode('pc', true)" 
+                        class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow cursor-pointer"
+                    >
+                        <span>🖥️</span><span>PC</span>
+                    </button>
+                    <button 
+                        type="button" 
+                        id="mode-btn-mobile" 
+                        onclick="setViewMode('mobile', true)" 
+                        class="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                        <span>📱</span><span>모바일</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 중앙: 핵심 재화 HUD (보유 골드, 초당 자동, 증표) -->
+            <div class="flex items-center gap-2 sm:gap-3 bg-slate-950/90 px-2.5 sm:px-3.5 py-1 rounded-xl border border-slate-800 shadow-inner">
+                <div class="flex items-center gap-1 text-amber-400 font-black font-mono-num text-xs sm:text-base">
+                    <i class="fa-solid fa-coins text-xs"></i>
+                    <span id="hud-gold">0</span><span class="text-[11px]">G</span>
+                </div>
+                <div class="h-4 w-[1px] bg-slate-800"></div>
+                <div class="text-[11px] sm:text-xs font-bold text-emerald-400 font-mono-num">
+                    +<span id="hud-gps">0</span>/s
+                </div>
+                <div class="h-4 w-[1px] bg-slate-800"></div>
+                <div class="text-[11px] sm:text-xs font-bold text-purple-400 font-mono-num flex items-center gap-1">
+                    <i class="fa-solid fa-crown text-[10px]"></i>
+                    <span id="hud-prestige">0</span>
+                    <span class="hidden sm:inline text-purple-300/70">(+<span id="hud-prestige-bonus">0</span>%)</span>
+                </div>
+                <span id="hud-total-gold" class="hidden">0</span>
+                <span id="hud-total-words" class="hidden">0</span>
+            </div>
+
+            <!-- 우측: 유저 상태 배지 + 랭킹 + 계정 + 효과음/초기화 -->
+            <div class="flex items-center gap-1.5 flex-wrap">
+                <span id="hud-account-status" class="text-[11px] font-extrabold flex items-center">
+                    <span class="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300">⚠️ 게스트 (나가면 초기화)</span>
+                </span>
+
+                <button type="button" onclick="openRankingModal()" class="px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/35 text-amber-300 border border-amber-400/50 transition flex items-center gap-1 text-[11px] font-black cursor-pointer">
+                    <span>🏆</span><span>랭킹</span>
+                </button>
+
+                <button type="button" id="btn-account-modal" onclick="openAccountHub()" class="px-2.5 py-1 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white border border-indigo-400/40 transition flex items-center gap-1 text-[11px] font-black cursor-pointer">
+                    <span>👤</span><span id="btn-account-label">계정</span>
+                </button>
+
+                <button type="button" id="btn-sound" onclick="toggleSound()" class="px-2 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition cursor-pointer" title="효과음 켜기/끄기">
+                    <i id="icon-sound" class="fa-solid fa-volume-high"></i>
+                </button>
+
+                <button type="button" onclick="openResetModal()" class="px-2 py-1 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-rose-400 border border-slate-700 text-xs transition cursor-pointer" title="진행 데이터 초기화">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 메인 컨텐츠 그리드 -->
+    <main id="main-grid" class="flex-1 max-w-7xl w-full mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+        
+        <!-- 좌측: 타이핑 무대 영역 (7칸) -->
+        <section id="left-stage-col" class="lg:col-span-7 flex flex-col gap-2.5 sm:gap-3.5">
+            
+            <!-- [타이쿤 전용] 단어장 난이도 선택 및 스탯 요약 -->
+            <div id="tycoon-tier-bar" class="bg-slate-900/80 border border-slate-800 rounded-2xl p-2.5 sm:p-3.5 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                    <span class="text-[11px] sm:text-xs font-bold text-slate-400 mr-0.5"><i class="fa-solid fa-book-open mr-1"></i>단어장:</span>
+                    <button type="button" id="tier-btn-0" onclick="selectTier(0)" class="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-amber-500 text-slate-950 cursor-pointer">초급 (1x)</button>
+                    <button type="button" id="tier-btn-1" onclick="selectTier(1)" class="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800 text-slate-400">중급 🔒</button>
+                    <button type="button" id="tier-btn-2" onclick="selectTier(2)" class="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800 text-slate-400">고급 🔒</button>
+                    <button type="button" id="tier-btn-3" onclick="selectTier(3)" class="px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800 text-slate-400">전설 🔒</button>
+                </div>
+                <div class="flex items-center gap-1.5 text-[11px] sm:text-xs">
+                    <span class="bg-slate-800/90 px-2 py-0.5 rounded-lg border border-slate-700 text-amber-300">
+                        기본: <strong id="stat-base-gold" class="font-mono-num">10</strong>G
+                    </span>
+                    <span class="bg-slate-800/90 px-2 py-0.5 rounded-lg border border-slate-700 text-rose-300">
+                        크리: <strong id="stat-crit" class="font-mono-num">5% (2.0x)</strong>
+                    </span>
+                </div>
+            </div>
+
+            <!-- [수련장 전용] 카테고리 선택 및 타수 기록 초기화 바 -->
+            <div id="dojo-category-bar" class="hidden bg-slate-900/80 border border-emerald-500/30 rounded-2xl p-2.5 sm:p-3.5 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                    <span class="text-[11px] sm:text-xs font-bold text-emerald-400 mr-0.5"><i class="fa-solid fa-bullseye mr-1"></i>연습 예문:</span>
+                    <button type="button" id="dojo-cat-short" onclick="selectDojoCategory('short')" class="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-black transition bg-emerald-500 text-slate-950 shadow cursor-pointer">짧은 문장</button>
+                    <button type="button" id="dojo-cat-quote" onclick="selectDojoCategory('quote')" class="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">긴 명언</button>
+                    <button type="button" id="dojo-cat-english" onclick="selectDojoCategory('english')" class="px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer">영문 연습</button>
+                </div>
+                <button type="button" onclick="resetDojoStats(true)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-rose-950/80 text-rose-300 border border-slate-700 text-[11px] sm:text-xs font-bold transition cursor-pointer">
+                    <i class="fa-solid fa-rotate-right mr-1"></i>기록 초기화
+                </button>
+            </div>
+
+            <!-- 메인 타이핑 스테이지 카드 -->
+            <div id="typing-stage" class="relative flex-1 bg-slate-900/95 border-2 border-slate-800 rounded-3xl p-4 sm:p-5 flex flex-col justify-between shadow-2xl overflow-hidden transition-all">
+                
+                <!-- [타이쿤 전용] 피버 타임 상단 배너 & 프로그레스 바 -->
+                <div id="tycoon-fever-header" class="w-full">
+                    <div class="flex items-center justify-between text-[11px] sm:text-xs font-bold mb-1">
+                        <div class="flex items-center gap-1.5">
+                            <span id="combo-badge" class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-mono-num">
+                                0 COMBO
+                            </span>
+                            <span id="combo-bonus-text" class="text-sky-400">보너스 +0%</span>
+                        </div>
+                        <div id="fever-status-label" class="text-amber-400 flex items-center gap-1">
+                            <i class="fa-solid fa-fire"></i>
+                            <span>피버: <span id="fever-progress-text" class="font-mono-num">0/20</span></span>
+                        </div>
+                    </div>
+                    <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                        <div id="fever-bar" class="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500 transition-all duration-150" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- [수련장 전용] 실시간 타수(CPM) / 정확도 대시보드 -->
+                <div id="dojo-live-stats-header" class="hidden w-full grid grid-cols-4 gap-1.5 bg-slate-950/90 border border-emerald-500/30 rounded-2xl p-2 text-center">
+                    <div>
+                        <div class="text-[10px] font-bold text-slate-400">현재 타수</div>
+                        <div class="text-sm sm:text-lg font-black text-emerald-400 font-mono-num"><span id="dojo-live-cpm">0</span><span class="text-[10px] font-bold ml-0.5">타</span></div>
+                    </div>
+                    <div class="border-l border-slate-800">
+                        <div class="text-[10px] font-bold text-slate-400">최고 타수</div>
+                        <div class="text-sm sm:text-lg font-black text-amber-400 font-mono-num"><span id="dojo-max-cpm">0</span><span class="text-[10px] font-bold ml-0.5">타</span></div>
+                    </div>
+                    <div class="border-l border-slate-800">
+                        <div class="text-[10px] font-bold text-slate-400">평균 타수</div>
+                        <div class="text-sm sm:text-lg font-black text-sky-400 font-mono-num"><span id="dojo-avg-cpm">0</span><span class="text-[10px] font-bold ml-0.5">타</span></div>
+                    </div>
+                    <div class="border-l border-slate-800">
+                        <div class="text-[10px] font-bold text-slate-400">정확도</div>
+                        <div class="text-sm sm:text-lg font-black text-purple-400 font-mono-num"><span id="dojo-accuracy">100</span>%</div>
+                    </div>
+                </div>
+
+                <!-- 받아쓰기(제시어) 디스플레이 영역 (항상 선명하게 노출, 한 줄 가로 중앙 정렬 슬라이드) -->
+                <div id="word-display-container" class="my-auto py-3 sm:py-4 flex flex-col items-center justify-center text-center relative w-full">
+                    <div class="text-[11px] sm:text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5" id="current-tier-label">
+                        [ 🇰🇷 한글 • 초급 단어장 • 보상 배율 1.0배 ]
+                    </div>
+                    
+                    <div id="target-word-viewport" class="w-full max-w-2xl py-2.5 sm:py-3.5 px-2 rounded-2xl bg-slate-950 border border-slate-700/90 shadow-inner">
+                        <!-- 좌우 페이드 마스크 -->
+                        <div class="pointer-events-none absolute inset-y-0 left-0 w-7 sm:w-10 bg-gradient-to-r from-slate-950 to-transparent z-10"></div>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 w-7 sm:w-10 bg-gradient-to-l from-slate-950 to-transparent z-10"></div>
+                        <!-- 중앙 커서 가이드 화살표 -->
+                        <div class="pointer-events-none absolute top-0.5 left-1/2 -translate-x-1/2 text-[10px] text-amber-400 z-10">
+                            <i class="fa-solid fa-caret-down"></i>
+                        </div>
+                        <!-- 한 줄로 고정되며 translateX로 현재 글자가 중앙에 오도록 이동하는 제시어 트랙 -->
+                        <div id="target-display" class="text-2xl sm:text-4xl font-black tracking-wide select-none whitespace-nowrap">
+                            <span id="target-word-track" class="inline-flex items-center whitespace-nowrap">타자왕</span>
+                        </div>
+                    </div>
+
+                    <div id="tycoon-expected-gold-row" class="mt-1.5 text-[11px] sm:text-xs text-slate-400 flex items-center gap-1.5">
+                        <span>예상 획득 골드:</span>
+                        <span id="expected-gold" class="text-amber-400 font-bold font-mono-num text-xs sm:text-sm">10 G</span>
+                    </div>
+                    <div id="dojo-timer-hint-row" class="hidden mt-1.5 text-[11px] sm:text-xs text-emerald-400/95 flex items-center gap-1.5 font-mono-num">
+                        <i class="fa-solid fa-stopwatch"></i>
+                        <span id="dojo-status-hint">첫 글자를 입력하면 실시간 타수 측정이 시작됩니다</span>
+                    </div>
+                </div>
+
+                <!-- 순수 <div> 기반 실시간 타이핑 디스플레이 박스 (<input> 완전 제거로 OS 키보드 100% 차단) -->
+                <div class="w-full max-w-xl mx-auto flex flex-col gap-1.5">
+                    <div class="relative w-full">
+                        <div 
+                            id="live-typing-display" 
+                            role="textbox"
+                            aria-label="실시간 타이핑 입력 표시창"
+                            onclick="activateDisplayBox()"
+                            class="w-full min-h-[52px] sm:min-h-[60px] bg-slate-950 border-2 border-amber-400/85 rounded-2xl pl-3 pr-16 py-2.5 flex items-center justify-center text-center text-lg sm:text-2xl font-bold text-white shadow-[0_0_16px_rgba(251,191,36,0.14)] transition-all cursor-pointer overflow-x-auto"
+                        >
+                            <div id="typing-display-content" class="flex items-center justify-center whitespace-pre">
+                                <span class="text-slate-500 text-xs sm:text-base font-medium">아래 키보드를 눌러 제시어를 입력하세요</span>
+                                <span class="display-caret"></span>
+                            </div>
+                        </div>
+                        <button type="button" onclick="skipWord()" class="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-[11px] font-bold text-slate-300 hover:text-white transition cursor-pointer z-10" title="단어 변경">
+                            <i class="fa-solid fa-forward"></i> 패스
+                        </button>
+                    </div>
+
+                    <div class="flex flex-wrap items-center justify-between text-[11px] text-slate-400 px-1 gap-1.5">
+                        <label class="flex items-center gap-1.5 cursor-pointer hover:text-slate-200 transition">
+                            <input type="checkbox" id="auto-submit-toggle" checked class="w-3.5 h-3.5 rounded accent-amber-500 cursor-pointer">
+                            <span>정확히 일치하면 자동완성</span>
+                        </label>
+                        <span class="text-emerald-400/90 font-bold flex items-center gap-1">
+                            <i class="fa-solid fa-shield-halved"></i> OS 키보드 차단됨
+                        </span>
+                    </div>
+                </div>
+
+                <!-- 타자 입력 영역 바로 아래: 실시간 연동 두벌식 한글/영문 가상 키보드 -->
+                <div id="virtual-keyboard-wrapper" class="mt-2.5 pt-2 border-t border-slate-800/90 w-full select-none">
+                    <div class="flex items-center justify-between text-[10px] sm:text-[11px] text-slate-400 mb-1.5 px-0.5">
+                        <div class="flex items-center gap-1.5">
+                            <span class="font-bold text-slate-300"><i class="fa-solid fa-keyboard text-amber-400 mr-1"></i>내장 키보드</span>
+                            <span id="vk-mode-badge" class="px-1.5 py-0.5 rounded bg-indigo-950/90 border border-indigo-500/40 text-indigo-300 font-bold">한글 (두벌식)</span>
+                        </div>
+                        <span class="text-slate-500 hidden sm:inline">터치/클릭 & 물리 키보드 100% 연동</span>
+                    </div>
+                    <div id="virtual-keyboard-rows" class="flex flex-col gap-1 sm:gap-1.5 bg-slate-950/90 p-1.5 sm:p-2 rounded-2xl border border-slate-800 shadow-inner w-full">
+                        <!-- JS로 키캡 행 렌더링 -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 하단 팁 / 저장 상태 바 -->
+            <div id="info-banner" class="bg-slate-900/70 border border-slate-800/80 rounded-2xl px-3.5 py-2 flex flex-wrap items-center justify-between gap-1.5 text-[11px] text-slate-400">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-lightbulb text-amber-400"></i>
+                    <span id="tip-text">팁: 상단 [🇰🇷 한글 | 🇺🇸 영어] 스위치로 한글/영어 타자를 언제든 바꿀 수 있습니다!</span>
+                </div>
+                <span id="save-status-badge" class="text-amber-400 font-bold font-mono-num">GUEST (미저장)</span>
+            </div>
+        </section>
+
+        <!-- 우측: 상점 & 환생 시스템 (5칸) -->
+        <section id="right-shop-col" class="lg:col-span-5 flex flex-col bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl h-[calc(100vh-96px)] min-h-[520px]">
+            
+            <!-- 상점 탭 네비게이션 -->
+            <div class="grid grid-cols-3 bg-slate-950/90 p-1.5 border-b border-slate-800">
+                <button type="button" id="tab-upgrades" onclick="switchTab('upgrades')" class="py-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-amber-400 shadow cursor-pointer">
+                    <i class="fa-solid fa-wrench mr-1"></i> 장비 강화
+                </button>
+                <button type="button" id="tab-bots" onclick="switchTab('bots')" class="py-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-slate-200 cursor-pointer">
+                    <i class="fa-solid fa-robot mr-1"></i> 오토 봇
+                </button>
+                <button type="button" id="tab-prestige" onclick="switchTab('prestige')" class="py-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-purple-300 cursor-pointer">
+                    <i class="fa-solid fa-crown mr-1"></i> 환생
+                </button>
+            </div>
+
+            <!-- 탭 1: 장비 강화 목록 -->
+            <div id="panel-upgrades" class="flex-1 overflow-y-auto p-3.5 space-y-2.5"></div>
+
+            <!-- 탭 2: 오토 타이핑 봇 목록 -->
+            <div id="panel-bots" class="hidden flex-1 overflow-y-auto p-3.5 space-y-2.5"></div>
+
+            <!-- 탭 3: 환생 (프레스티지) 패널 -->
+            <div id="panel-prestige" class="hidden flex-1 overflow-y-auto p-4 flex flex-col justify-between">
+                <div class="space-y-3.5">
+                    <div class="bg-gradient-to-br from-purple-950/80 to-slate-900 border border-purple-500/30 rounded-2xl p-4 text-center">
+                        <div class="w-12 h-12 mx-auto rounded-2xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300 text-xl mb-2 shadow-lg shadow-purple-500/20">
+                            <i class="fa-solid fa-crown"></i>
+                        </div>
+                        <h2 class="text-base font-black text-purple-200">타자 마스터 환생</h2>
+                        <p class="text-xs text-slate-300 mt-1 leading-relaxed">
+                            현재 보유 골드와 일반 업그레이드를 초기화하고<br>
+                            영구적인 <strong class="text-purple-300">타자 마스터 증표</strong>를 획득합니다.
+                        </p>
+                    </div>
+
+                    <div class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 space-y-2.5 text-xs sm:text-sm">
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">현재 보유 증표</span>
+                            <span class="font-bold text-purple-400 font-mono-num"><span id="prestige-current-tokens">0</span> 개</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-400">현재 영구 골드 보너스</span>
+                            <span class="font-bold text-emerald-400 font-mono-num">+<span id="prestige-current-bonus">0</span>%</span>
+                        </div>
+                        <div class="h-[1px] bg-slate-800"></div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-slate-300 font-bold">환생 시 획득 가능 증표</span>
+                            <span class="font-black text-amber-400 text-base font-mono-num">+<span id="prestige-claimable">0</span> 개</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 text-right">
+                            * 증표 1개당 모든 골드 획득량 +25% 영구 증가<br>
+                            * 최소 누적 골드 100k (100,000 G) 이상 필요
+                        </div>
+                    </div>
+                </div>
+
+                <button type="button" id="btn-do-prestige" onclick="triggerPrestige()" class="w-full py-3.5 rounded-2xl font-black text-sm bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-600/30 transition disabled:opacity-40 disabled:cursor-not-allowed mt-3 cursor-pointer">
+                    <i class="fa-solid fa-sparkles mr-1.5"></i> 지금 환생하기
+                </button>
+            </div>
+
+        </section>
+
+        <!-- [수련장 전용] 우측 타수 측정 상세 리포트 패널 (5칸) -->
+        <section id="right-dojo-col" class="hidden lg:col-span-5 flex-col bg-slate-900/90 border border-emerald-500/30 rounded-3xl overflow-hidden shadow-2xl h-[calc(100vh-96px)] min-h-[520px] p-4 justify-between">
+            <div class="space-y-3.5 overflow-y-auto pr-1">
+                <div class="bg-gradient-to-br from-emerald-950/80 to-slate-900 border border-emerald-500/30 rounded-2xl p-3.5 flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 text-xl shrink-0">
+                        <i class="fa-solid fa-gauge-high"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm sm:text-base font-black text-emerald-200">타자 수련장 (CPM 측정기)</h2>
+                        <p class="text-[11px] sm:text-xs text-slate-300 mt-0.5">골드 보상 없이 순수 분당 타수(자소 분리 기준)와 정확도를 측정합니다.</p>
+                    </div>
+                </div>
+
+                <!-- 상세 측정 카드 그리드 -->
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-3">
+                        <div class="text-[11px] text-slate-400 font-bold">직전 완료 타수</div>
+                        <div class="text-lg font-black text-emerald-400 font-mono-num mt-0.5"><span id="dojo-last-cpm">0</span> 타/분</div>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-3">
+                        <div class="text-[11px] text-slate-400 font-bold">영문 환산 WPM</div>
+                        <div class="text-lg font-black text-cyan-400 font-mono-num mt-0.5"><span id="dojo-live-wpm">0</span> WPM</div>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-3">
+                        <div class="text-[11px] text-slate-400 font-bold">완료한 연습 문장</div>
+                        <div class="text-lg font-black text-amber-300 font-mono-num mt-0.5"><span id="dojo-completed-count">0</span> 문장</div>
+                    </div>
+                    <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-3">
+                        <div class="text-[11px] text-slate-400 font-bold">누적 입력 타수</div>
+                        <div class="text-lg font-black text-purple-300 font-mono-num mt-0.5"><span id="dojo-total-strokes">0</span> 타</div>
+                    </div>
+                </div>
+
+                <!-- 최근 완료 문장 기록 리스트 -->
+                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-3.5">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-black text-slate-200"><i class="fa-solid fa-clock-rotate-left text-emerald-400 mr-1.5"></i>최근 완료 기록 (최대 6개)</span>
+                        <span class="text-[10px] text-slate-500">한글 자소 분리 계산</span>
+                    </div>
+                    <div id="dojo-history-list" class="space-y-1.5 text-xs">
+                        <div class="text-slate-500 text-center py-4">아직 완료한 문장이 없습니다. 예문을 입력해 보세요!</div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" onclick="switchAppMode('tycoon')" class="w-full py-3 rounded-2xl font-black text-sm bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 shadow-lg shadow-amber-500/20 transition mt-3 cursor-pointer">
+                <i class="fa-solid fa-coins mr-1.5"></i>💰 타이쿤 모드로 돌아가기
+            </button>
+        </section>
+    </main>
+
+    <!-- 커스텀 알림/확인 모달 -->
+    <div id="custom-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl transform transition-all">
+            <h3 id="modal-title" class="text-lg font-black text-white mb-2">알림</h3>
+            <p id="modal-desc" class="text-sm text-slate-300 leading-relaxed mb-6">내용</p>
+            <div class="flex justify-end gap-2">
+                <button type="button" id="modal-cancel" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sm font-bold text-slate-300 transition cursor-pointer">취소</button>
+                <button type="button" id="modal-confirm" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-sm font-black transition cursor-pointer">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 계정 허브 모달 (비로그인 시 로그인/회원가입 폼, 로그인 시 계정 관리/저장/로그아웃) -->
+    <div id="auth-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+            <button type="button" onclick="closeAuthModal()" class="absolute right-5 top-5 text-slate-400 hover:text-white transition text-lg cursor-pointer" title="닫기">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <!-- 로그인 상태일 때 표시되는 계정 관리 뷰 -->
+            <div id="account-logged-in-view" class="hidden space-y-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-slate-950 text-xl font-black shadow-lg">
+                        👑
+                    </div>
+                    <div>
+                        <h2 id="logged-in-nickname-title" class="text-lg font-black text-white">플레이어</h2>
+                        <p class="text-xs text-emerald-400 font-bold">계정 연동 중 • 데이터 자동 영구 저장됨</p>
+                    </div>
+                </div>
+                <div class="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs text-slate-300">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">보유 골드</span>
+                        <span id="acc-summary-gold" class="font-mono-num font-bold text-amber-400">0 G</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">마스터 증표</span>
+                        <span id="acc-summary-prestige" class="font-mono-num font-bold text-purple-400">0 개</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">최고 콤보</span>
+                        <span id="acc-summary-combo" class="font-mono-num font-bold text-rose-400">0 COMBO</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2.5">
+                    <button type="button" onclick="manualSave()" class="py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-lg transition cursor-pointer">
+                        <i class="fa-solid fa-floppy-disk mr-1"></i>지금 즉시 저장
+                    </button>
+                    <button type="button" onclick="logoutUser(); closeAuthModal();" class="py-3 rounded-xl bg-rose-600/80 hover:bg-rose-600 text-white font-black text-xs shadow-lg transition cursor-pointer">
+                        <i class="fa-solid fa-right-from-bracket mr-1"></i>로그아웃
+                    </button>
+                </div>
+            </div>
+
+            <!-- 비로그인(게스트) 상태일 때 표시되는 로그인/회원가입 뷰 -->
+            <div id="account-guest-view">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg shadow-indigo-500/30">
+                        <i class="fa-solid fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h2 id="auth-modal-title" class="text-lg font-black text-white">계정 로그인</h2>
+                        <p class="text-xs text-slate-400">회원가입 후 로그인하면 데이터가 영구 저장됩니다.</p>
+                    </div>
+                </div>
+
+                <!-- 로그인 / 회원가입 전환 탭 -->
+                <div class="grid grid-cols-2 bg-slate-950 p-1 rounded-xl border border-slate-800 mb-4">
+                    <button type="button" id="auth-tab-login" onclick="switchAuthMode('login')" class="py-2 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 text-white transition cursor-pointer">
+                        로그인
+                    </button>
+                    <button type="button" id="auth-tab-signup" onclick="switchAuthMode('signup')" class="py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer">
+                        회원가입
+                    </button>
+                </div>
+
+                <form id="auth-form" onsubmit="submitAuthForm(event)" class="space-y-3.5">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="auth-nickname" class="text-xs font-bold text-slate-300">닉네임</label>
+                            <span id="auth-nick-count" class="text-[11px] text-slate-400 font-mono-num">0 / 16자 (모든 문자 허용)</span>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="auth-nickname" 
+                            maxlength="16" 
+                            placeholder="최대 16글자 (한글, 영문, 숫자, 특수문자 가능)"
+                            class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-400 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                        >
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="auth-password" class="text-xs font-bold text-slate-300">비밀번호</label>
+                            <span id="auth-pw-count" class="text-[11px] text-slate-400 font-mono-num">0 / 30자 (영어·숫자만)</span>
+                        </div>
+                        <input 
+                            type="password" 
+                            id="auth-password" 
+                            maxlength="30" 
+                            placeholder="영어(a-z, A-Z)와 숫자(0-9)만 입력 (최대 30자)"
+                            class="w-full bg-slate-950 border border-slate-700 focus:border-indigo-400 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition"
+                        >
+                        <p id="auth-pw-hint" class="text-[11px] text-slate-500 mt-1">
+                            * 비밀번호는 영어 대소문자와 숫자만 사용할 수 있습니다.
+                        </p>
+                    </div>
+
+                    <div id="auth-error-msg" class="hidden bg-rose-950/80 border border-rose-500/50 text-rose-300 text-xs font-bold px-3.5 py-2 rounded-xl">
+                    </div>
+
+                    <button type="submit" id="auth-submit-btn" class="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-black text-sm shadow-lg shadow-indigo-600/30 transition cursor-pointer">
+                        로그인하고 데이터 불러오기
+                    </button>
+                </form>
+
+                <div class="mt-3.5 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+                    <span>게스트는 나가면 초기화됩니다.</span>
+                    <button type="button" onclick="closeAuthModal()" class="text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer">
+                        게스트로 계속하기
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🏆 랭킹보드 (리더보드) 모달 -->
+    <div id="ranking-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl max-w-2xl w-full p-5 sm:p-6 shadow-2xl relative flex flex-col max-h-[88vh]">
+            <button type="button" onclick="closeRankingModal()" class="absolute right-5 top-5 text-slate-400 hover:text-white transition text-lg cursor-pointer" title="닫기">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-600 flex items-center justify-center text-slate-950 text-xl shadow-lg shadow-amber-500/30 shrink-0">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+                        명예의 전당 랭킹보드
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">LIVE</span>
+                    </h2>
+                    <p class="text-xs text-slate-400">가입된 모든 플레이어와 전설의 타이피스트 순위표입니다.</p>
+                </div>
+            </div>
+
+            <!-- 정렬 기준 전환 탭 -->
+            <div class="grid grid-cols-3 bg-slate-950 p-1.5 rounded-2xl border border-slate-800 mb-3 gap-1">
+                <button type="button" id="rank-tab-gold" onclick="switchRankingTab('gold')" class="py-2 rounded-xl text-xs sm:text-sm font-black bg-amber-500 text-slate-950 shadow transition cursor-pointer">
+                    <i class="fa-solid fa-coins mr-1"></i>누적 골드순
+                </button>
+                <button type="button" id="rank-tab-prestige" onclick="switchRankingTab('prestige')" class="py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer">
+                    <i class="fa-solid fa-crown mr-1"></i>환생 증표순
+                </button>
+                <button type="button" id="rank-tab-combo" onclick="switchRankingTab('combo')" class="py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer">
+                    <i class="fa-solid fa-fire mr-1"></i>최고 콤보순
+                </button>
+            </div>
+
+            <!-- 내 현재 순위 요약 배너 -->
+            <div id="my-rank-summary" class="bg-gradient-to-r from-indigo-950/90 to-slate-950 border border-indigo-500/40 rounded-2xl px-4 py-2.5 mb-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+            </div>
+
+            <!-- 랭킹 리스트 스크롤 영역 -->
+            <div id="ranking-list-container" class="flex-1 overflow-y-auto space-y-2 pr-1">
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                <span>* 회원가입 계정은 실시간으로 랭킹에 자동 등록됩니다.</span>
+                <button type="button" onclick="closeRankingModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition cursor-pointer">
+                    닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 토스트 메시지 컨테이너 -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        /**
+         * ============================================================================
+         * 1. 사운드 엔진 (Web Audio API 기계식 청축 타건음 & 코인/업그레이드 효과음)
+         * ============================================================================
+         */
+        const SoundEngine = {
+            ctx: null,
+            muted: false,
+
+            init() {
+                try {
+                    if (!this.ctx) {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        if (AudioContext) this.ctx = new AudioContext();
+                    }
+                    if (this.ctx && this.ctx.state === 'suspended') {
+                        this.ctx.resume();
+                    }
+                } catch (e) {}
+            },
+
+            playKeyClick() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    const baseFreq = 260 + Math.random() * 60;
+                    osc.frequency.setValueAtTime(baseFreq, now);
+                    osc.frequency.exponentialRampToValueAtTime(70, now + 0.035);
+                    gain.gain.setValueAtTime(0.18, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.04);
+                } catch (e) {}
+            },
+
+            playCoin(isCrit = false, isFever = false) {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = isCrit ? 'sawtooth' : 'sine';
+                    const startFreq = isCrit ? 880 : (isFever ? 740 : 587.33);
+                    const endFreq = isCrit ? 1760 : (isFever ? 1174.66 : 880);
+                    osc.frequency.setValueAtTime(startFreq, now);
+                    osc.frequency.setValueAtTime(endFreq, now + 0.06);
+                    gain.gain.setValueAtTime(isCrit ? 0.22 : 0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.23);
+                } catch (e) {}
+            },
+
+            playUpgrade() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const notes = [523.25, 659.25, 783.99];
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+                        gain.gain.setValueAtTime(0.15, now + idx * 0.05);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.15);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.05);
+                        osc.stop(now + idx * 0.05 + 0.16);
+                    });
+                } catch (e) {}
+            },
+
+            playFeverStart() {
+                if (this.muted) return;
+                this.init();
+                if (!this.ctx) return;
+                try {
+                    const now = this.ctx.currentTime;
+                    const notes = [523.25, 659.25, 783.99, 1046.50];
+                    notes.forEach((freq, idx) => {
+                        const osc = this.ctx.createOscillator();
+                        const gain = this.ctx.createGain();
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+                        gain.gain.setValueAtTime(0.12, now + idx * 0.07);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.25);
+                        osc.connect(gain);
+                        gain.connect(this.ctx.destination);
+                        osc.start(now + idx * 0.07);
+                        osc.stop(now + idx * 0.07 + 0.26);
+                    });
+                } catch (e) {}
+            }
+        };
+
+        /**
+         * ============================================================================
+         * 2. 한국어 & 영어 단어/문장 데이터베이스 (난이도별 4티어)
+         * ============================================================================
+         */
+        const WORD_TIERS_KO = [
+            {
+                id: 0,
+                name: '초급 단어장',
+                multiplier: 1.0,
+                unlockLevel: 0,
+                words: [
+                    '타자', '골드', '키보드', '성공', '열정', '도전', '행운', '최고', '코딩', '게임',
+                    '속도', '집중', '승리', '보물', '다이아', '황금', '자판', '연습', '달인', '노력',
+                    '컴퓨터', '마우스', '모니터', '스피드', '타이핑', '기계식', '청축', '적축', '갈축', '키캡'
+                ]
+            },
+            {
+                id: 1,
+                name: '중급 사자성어',
+                multiplier: 2.8,
+                unlockLevel: 1,
+                words: [
+                    '일취월장', '고진감래', '티끌모아 태산', '백발백중', '유비무환', '금상첨화',
+                    '다다익선', '사필귀정', '새옹지마', '역지사지', '온고지신', '자수성가',
+                    '천리길도 한걸음부터', '시작이 반이다', '가는 말이 고와야 오는 말이 곱다',
+                    '백지장도 맞들면 낫다', '공든 탑이 무너지랴', '기회는 준비된 자에게 온다'
+                ]
+            },
+            {
+                id: 2,
+                name: '고급 명언/문장',
+                multiplier: 7.5,
+                unlockLevel: 2,
+                words: [
+                    '노력은 배신하지 않는다',
+                    '오늘 걷지 않으면 내일은 뛰어야 한다',
+                    '성공은 매일 반복한 작은 노력들의 합이다',
+                    '피할 수 없으면 즐겨라',
+                    '가장 어두운 밤이 지나면 가장 밝은 새벽이 온다',
+                    '꿈을 꾸는 자만이 그 꿈을 이룰 수 있다',
+                    '빠른 타자 속도는 곧 강력한 무기다',
+                    '위대한 일은 열정 없이 이루어진 적이 없다'
+                ]
+            },
+            {
+                id: 3,
+                name: '전설의 장문 마스터',
+                multiplier: 20.0,
+                unlockLevel: 3,
+                words: [
+                    '천재는 1퍼센트의 영감과 99퍼센트의 노력으로 이루어진다',
+                    '우리가 두려워해야 할 유일한 것은 두려움 그 자체이다',
+                    '지금 흘린 땀방울은 내일 빛나는 황금으로 돌아올 것이다',
+                    '한계라고 생각하는 순간이 바로 새로운 시작의 출발점이다',
+                    '완벽한 기계식 키보드의 타건음은 예술과도 같다'
+                ]
+            }
+        ];
+
+        const WORD_TIERS_EN = [
+            {
+                id: 0,
+                name: 'Beginner Words',
+                multiplier: 1.0,
+                unlockLevel: 0,
+                words: [
+                    'gold', 'type', 'speed', 'focus', 'skill', 'power', 'spark', 'quest', 'level', 'shift',
+                    'combo', 'fever', 'click', 'craft', 'smart', 'rapid', 'sonic', 'turbo', 'crown', 'token',
+                    'keyboard', 'tycoon', 'arcade', 'master', 'winner', 'legend', 'chrono', 'matrix', 'cipher', 'boost'
+                ]
+            },
+            {
+                id: 1,
+                name: 'Intermediate Phrases',
+                multiplier: 2.8,
+                unlockLevel: 1,
+                words: [
+                    'type fast', 'stay sharp', 'no limits', 'keep going', 'aim high', 'pure gold',
+                    'quick hands', 'sharp mind', 'full speed', 'zero fear', 'high score', 'level up',
+                    'practice makes skill', 'never give up', 'every second counts', 'action speaks louder'
+                ]
+            },
+            {
+                id: 2,
+                name: 'Advanced Quotes',
+                multiplier: 7.5,
+                unlockLevel: 2,
+                words: [
+                    'The quick brown fox jumps over the lazy dog',
+                    'Simplicity is the soul of efficiency',
+                    'Consistency beats intensity over time',
+                    'Great things never come from comfort zones',
+                    'Dream big start small and act now',
+                    'Code is like humor when explained it is bad',
+                    'Stay hungry stay foolish and keep typing'
+                ]
+            },
+            {
+                id: 3,
+                name: 'Legendary Master',
+                multiplier: 20.0,
+                unlockLevel: 3,
+                words: [
+                    'Success is the sum of small efforts repeated day in and day out',
+                    'The only thing we have to fear is fear itself',
+                    'Every keystroke brings you closer to becoming a typing legend',
+                    'Discipline is choosing between what you want now and what you want most'
+                ]
+            }
+        ];
+
+        function getActiveWordTiers() {
+            return currentTypingLang === 'en' ? WORD_TIERS_EN : WORD_TIERS_KO;
+        }
+
+        /**
+         * ============================================================================
+         * 3. 게임 상태, 업그레이드 및 오토 봇 메타데이터
+         * ============================================================================
+         */
+        function getDefaultGameState() {
+            return {
+                gold: 0,
+                totalGoldEarned: 0,
+                lifetimeGold: 0,
+                totalWordsTyped: 0,
+                combo: 0,
+                maxCombo: 0,
+                selectedTier: 0,
+                prestigeTokens: 0,
+                lastSaveTime: Date.now(),
+                upgrades: {
+                    keyboard: 1,
+                    keycap: 0,
+                    switchLubing: 0,
+                    dictionary: 0,
+                    comboMaster: 0
+                },
+                bots: {
+                    macroScript: 0,
+                    autoArm: 0,
+                    aiTypist: 0,
+                    quantumCore: 0,
+                    cosmicMainframe: 0
+                }
+            };
+        }
+
+        let gameState = getDefaultGameState();
+
+        const UPGRADE_DEFS = [
+            {
+                id: 'keyboard',
+                name: '기계식 키보드 강화',
+                icon: 'fa-keyboard',
+                color: 'text-amber-400',
+                bg: 'bg-amber-500/10 border-amber-500/30',
+                baseCost: 15,
+                costMult: 1.38,
+                maxLevel: 999,
+                desc: () => `타자 1회당 기본 골드 증가 (현재 +${formatNumber(getBaseClickGold())} G)`
+            },
+            {
+                id: 'keycap',
+                name: '황금 키캡 장착',
+                icon: 'fa-gem',
+                color: 'text-rose-400',
+                bg: 'bg-rose-500/10 border-rose-500/30',
+                baseCost: 50,
+                costMult: 1.55,
+                maxLevel: 50,
+                desc: () => `크리티컬 타격 확률 +1.5% 증가 (현재 ${(getCritChance() * 100).toFixed(1)}%)`
+            },
+            {
+                id: 'switchLubing',
+                name: '커스텀 스위치 윤활',
+                icon: 'fa-oil-can',
+                color: 'text-sky-400',
+                bg: 'bg-sky-500/10 border-sky-500/30',
+                baseCost: 120,
+                costMult: 1.65,
+                maxLevel: 100,
+                desc: () => `크리티컬 발생 시 골드 배율 +0.5x 증가 (현재 ${getCritMultiplier().toFixed(1)}배)`
+            },
+            {
+                id: 'comboMaster',
+                name: '콤보 리듬 트레이닝',
+                icon: 'fa-bolt',
+                color: 'text-yellow-300',
+                bg: 'bg-yellow-500/10 border-yellow-500/30',
+                baseCost: 200,
+                costMult: 1.7,
+                maxLevel: 50,
+                desc: (lvl) => `콤보 1회당 추가 골드 보너스 +1% 증가 (현재 콤보당 +${1 + lvl}%)`
+            },
+            {
+                id: 'dictionary',
+                name: '고급 단어 사전 해금',
+                icon: 'fa-book-bookmark',
+                color: 'text-purple-400',
+                bg: 'bg-purple-500/10 border-purple-500/30',
+                baseCost: 300,
+                costMult: 12.0,
+                maxLevel: 3,
+                desc: (lvl) => {
+                    const tiers = getActiveWordTiers();
+                    if (lvl >= 3) return '모든 전설 단어장이 해금되었습니다! (최대 20배 보상)';
+                    return `다음 단계 [${tiers[lvl + 1].name}] 해금 (보상 ${tiers[lvl + 1].multiplier}배)`;
+                }
+            }
+        ];
+
+        const BOT_DEFS = [
+            {
+                id: 'macroScript',
+                name: '매크로 스크립트',
+                icon: 'fa-terminal',
+                color: 'text-emerald-400',
+                baseCost: 40,
+                costMult: 1.25,
+                baseGps: 2,
+                desc: '초당 2 G를 자동으로 타이핑하여 벌어들입니다.'
+            },
+            {
+                id: 'autoArm',
+                name: '기계식 로봇 손가락',
+                icon: 'fa-hand-pointer',
+                color: 'text-teal-400',
+                baseCost: 350,
+                costMult: 1.28,
+                baseGps: 22,
+                desc: '지치지 않는 로봇 손가락이 초당 22 G를 생산합니다.'
+            },
+            {
+                id: 'aiTypist',
+                name: '초고속 AI 타이피스트',
+                icon: 'fa-microchip',
+                color: 'text-cyan-400',
+                baseCost: 3200,
+                costMult: 1.32,
+                baseGps: 210,
+                desc: '분당 3,000타를 치는 AI가 초당 210 G를 획득합니다.'
+            },
+            {
+                id: 'quantumCore',
+                name: '양자 타이핑 슈퍼코어',
+                icon: 'fa-atom',
+                color: 'text-indigo-400',
+                baseCost: 35000,
+                costMult: 1.35,
+                baseGps: 2400,
+                desc: '양자 연산으로 동시에 수만 단어를 입력해 초당 2,400 G를 창출합니다.'
+            },
+            {
+                id: 'cosmicMainframe',
+                name: '우주적 다중차원 타이핑 클러스터',
+                icon: 'fa-satellite',
+                color: 'text-fuchsia-400',
+                baseCost: 420000,
+                costMult: 1.38,
+                baseGps: 28000,
+                desc: '평행우주의 모든 키보드를 동기화하여 초당 28,000 G를 수확합니다.'
+            }
+        ];
+
+        // 런타임 상태 변수
+        let currentWord = '';
+        let currentTypedText = '';
+        let feverGauge = 0;
+        const FEVER_MAX = 20;
+        let isFeverActive = false;
+        let feverTimeLeft = 0;
+        const FEVER_DURATION = 15;
+        let activeTab = 'upgrades';
+
+        // 단어 완료 직후 잔여 입력 차단용 잠금 플래그
+        let justCompleted = false;
+        let completionUnlockTimer = null;
+
+        // 계정 관리 상태
+        let currentUserNickname = null; // null이면 게스트 모드 (새로고침/종료 시 초기화)
+        let authMode = 'login'; // 'login' | 'signup'
+
+        // 화면 레이아웃 모드 ('pc' | 'mobile')
+        let currentViewMode = 'pc';
+
+        // 타자 언어 스위치 상태 ('ko' | 'en')
+        let currentTypingLang = 'ko';
+
+        function setTypingLanguage(lang, notify = false) {
+            currentTypingLang = (lang === 'en') ? 'en' : 'ko';
+            const koBtn = document.getElementById('lang-btn-ko');
+            const enBtn = document.getElementById('lang-btn-en');
+
+            if (currentTypingLang === 'en') {
+                if (enBtn) {
+                    enBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-sky-400 text-slate-950 shadow cursor-pointer';
+                }
+                if (koBtn) {
+                    koBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer';
+                }
+                currentTypedText = HangulAutomata.commit(currentTypedText);
+                VirtualKeyboard.isKorean = false;
+                VirtualKeyboard.render();
+                if (notify) showToast('🇺🇸 영어 타자 모드로 전환되었습니다!', 'sky');
+            } else {
+                if (koBtn) {
+                    koBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-emerald-500 text-slate-950 shadow cursor-pointer';
+                }
+                if (enBtn) {
+                    enBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer';
+                }
+                VirtualKeyboard.isKorean = true;
+                VirtualKeyboard.render();
+                if (notify) showToast('🇰🇷 한글 타자 모드로 전환되었습니다!', 'emerald');
+            }
+
+            if (currentAppMode === 'dojo') {
+                dojoState.startTime = null;
+                clearTypingBufferSafely();
+                pickDojoWord();
+                updateDojoUI();
+            } else {
+                clearTypingBufferSafely();
+                pickNewWord();
+                renderShop();
+                updateHUD();
+            }
+            scheduleTargetCenterRecalc();
+        }
+
+        // 앱 모드 ('tycoon' | 'dojo') 및 수련장 상태
+        let currentAppMode = 'tycoon';
+        const DOJO_SENTENCES = {
+            ko: {
+                short: [
+                    '가는 말이 고와야 오는 말이 곱다',
+                    '천리길도 한걸음부터 시작된다',
+                    '티끌 모아 태산이 된다',
+                    '백지장도 맞들면 낫다',
+                    '노력은 결코 배신하지 않는다',
+                    '기회는 준비된 자에게 찾아온다',
+                    '시작이 반이라는 말을 기억하자',
+                    '오늘 할 일을 내일로 미루지 말자',
+                    '빠른 손놀림과 정확한 타자 습관',
+                    '맑은 하늘 아래 시원한 바람이 분다'
+                ],
+                quote: [
+                    '우리가 두려워해야 할 유일한 것은 두려움 그 자체이다',
+                    '성공은 매일 반복한 작은 노력들의 합이라는 사실을 잊지 마라',
+                    '가장 어두운 밤이 지나면 가장 밝은 새벽이 찾아온다',
+                    '천재는 1퍼센트의 영감과 99퍼센트의 땀방울로 이루어진다',
+                    '한계라고 생각하는 그 순간이 바로 새로운 출발점이다',
+                    '꿈을 계속 간직하고 있으면 반드시 실현할 때가 온다'
+                ],
+                english: [
+                    'The quick brown fox jumps over the lazy dog',
+                    'Practice makes perfect when you type every day',
+                    'Code is like humor when you have to explain it it is bad',
+                    'Simplicity is the soul of efficiency in software design',
+                    'Stay hungry stay foolish and keep typing fast'
+                ]
+            },
+            en: {
+                short: [
+                    'Type fast and stay sharp',
+                    'Practice makes real progress',
+                    'Every second counts in speed',
+                    'Keep your hands moving light',
+                    'Focus brings high accuracy',
+                    'Aim for zero typos today',
+                    'Steady rhythm wins the race',
+                    'Quick fingers and clear mind'
+                ],
+                quote: [
+                    'The quick brown fox jumps over the lazy dog',
+                    'Success is the sum of small efforts repeated every day',
+                    'Simplicity is the soul of efficiency in software craft',
+                    'Stay hungry stay foolish and keep pushing your limits',
+                    'Discipline is doing what needs to be done even when tired'
+                ],
+                english: [
+                    'Keyboard mastery comes from daily focused repetition',
+                    'Smooth transitions between keys boost real world WPM',
+                    'Watch the center cursor and keep your rhythm steady',
+                    'Speed and precision grow together with calm practice'
+                ]
+            }
+        };
+
+        const dojoState = {
+            category: 'short',
+            startTime: null,
+            completedStrokes: 0,
+            completedSeconds: 0,
+            completedCount: 0,
+            maxCpm: 0,
+            lastCpm: 0,
+            history: []
+        };
+
+        function countKoreanStrokes(text) {
+            if (!text) return 0;
+            const COMPLEX_JUNG = [9, 10, 11, 14, 15, 16, 19];
+            const DOUBLE_JONG = [3, 5, 6, 9, 10, 11, 12, 13, 14, 15, 18];
+            let strokes = 0;
+            for (let i = 0; i < text.length; i++) {
+                const code = text.charCodeAt(i);
+                if (code >= 0xAC00 && code <= 0xD7A3) {
+                    const syllableIdx = code - 0xAC00;
+                    const jung = Math.floor((syllableIdx % 588) / 28);
+                    const jong = syllableIdx % 28;
+                    strokes += 2;
+                    if (COMPLEX_JUNG.includes(jung)) strokes += 1;
+                    if (jong > 0) {
+                        strokes += 1;
+                        if (DOUBLE_JONG.includes(jong)) strokes += 1;
+                    }
+                } else {
+                    strokes += 1;
+                }
+            }
+            return strokes;
+        }
+
+        function switchAppMode(mode) {
+            currentAppMode = (mode === 'dojo') ? 'dojo' : 'tycoon';
+            const tycoonBtn = document.getElementById('app-mode-tycoon');
+            const dojoBtn = document.getElementById('app-mode-dojo');
+
+            const tycoonTierBar = document.getElementById('tycoon-tier-bar');
+            const dojoCatBar = document.getElementById('dojo-category-bar');
+            const tycoonFeverHeader = document.getElementById('tycoon-fever-header');
+            const dojoStatsHeader = document.getElementById('dojo-live-stats-header');
+            const tycoonGoldRow = document.getElementById('tycoon-expected-gold-row');
+            const dojoTimerRow = document.getElementById('dojo-timer-hint-row');
+            const rightShopCol = document.getElementById('right-shop-col');
+            const rightDojoCol = document.getElementById('right-dojo-col');
+
+            clearTypingBufferSafely();
+
+            if (currentAppMode === 'dojo') {
+                dojoBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-emerald-500 text-slate-950 shadow cursor-pointer';
+                tycoonBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer';
+
+                tycoonTierBar.classList.add('hidden');
+                dojoCatBar.classList.remove('hidden');
+                tycoonFeverHeader.classList.add('hidden');
+                dojoStatsHeader.classList.remove('hidden');
+                tycoonGoldRow.classList.add('hidden');
+                dojoTimerRow.classList.remove('hidden');
+                rightShopCol.classList.add('hidden');
+                rightDojoCol.classList.remove('hidden');
+                rightDojoCol.classList.add('flex');
+
+                dojoState.startTime = null;
+                pickDojoWord();
+                updateDojoUI();
+                showToast('🎯 타자 수련장 모드입니다. 실시간 타수와 정확도를 측정해 보세요!', 'emerald');
+            } else {
+                tycoonBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-amber-500 text-slate-950 shadow cursor-pointer';
+                dojoBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer';
+
+                tycoonTierBar.classList.remove('hidden');
+                dojoCatBar.classList.add('hidden');
+                tycoonFeverHeader.classList.remove('hidden');
+                dojoStatsHeader.classList.add('hidden');
+                tycoonGoldRow.classList.remove('hidden');
+                dojoTimerRow.classList.add('hidden');
+                rightShopCol.classList.remove('hidden');
+                rightDojoCol.classList.add('hidden');
+                rightDojoCol.classList.remove('flex');
+
+                pickNewWord();
+                updateHUD();
+            }
+            scheduleTargetCenterRecalc();
+        }
+
+        function selectDojoCategory(cat) {
+            const langPool = DOJO_SENTENCES[currentTypingLang] || DOJO_SENTENCES.ko;
+            if (!langPool[cat]) return;
+            dojoState.category = cat;
+            ['short', 'quote', 'english'].forEach(c => {
+                const btn = document.getElementById(`dojo-cat-${c}`);
+                if (!btn) return;
+                if (c === cat) {
+                    btn.className = 'px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-black transition bg-emerald-500 text-slate-950 shadow cursor-pointer';
+                } else {
+                    btn.className = 'px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800 hover:bg-slate-700 text-slate-300 cursor-pointer';
+                }
+            });
+
+            if (currentTypingLang === 'en' || cat === 'english') {
+                if (VirtualKeyboard.isKorean) {
+                    VirtualKeyboard.isKorean = false;
+                    VirtualKeyboard.render();
+                }
+            } else if (!VirtualKeyboard.isKorean) {
+                VirtualKeyboard.isKorean = true;
+                VirtualKeyboard.render();
+            }
+
+            dojoState.startTime = null;
+            clearTypingBufferSafely();
+            pickDojoWord();
+            updateDojoUI();
+        }
+
+        function pickDojoWord() {
+            const langPool = DOJO_SENTENCES[currentTypingLang] || DOJO_SENTENCES.ko;
+            const list = langPool[dojoState.category] || langPool.short;
+            let nextWord = currentWord;
+            while (nextWord === currentWord && list.length > 1) {
+                nextWord = list[Math.floor(Math.random() * list.length)];
+            }
+            currentWord = nextWord;
+            const langTag = currentTypingLang === 'en' ? '🇺🇸 영어' : '🇰🇷 한글';
+            const catLabelMap = { short: '짧은 문장 연습', quote: '긴 명언 연습', english: '영문 타이핑 연습' };
+            document.getElementById('current-tier-label').textContent = `[ ${langTag} • 수련장 • ${catLabelMap[dojoState.category]} ]`;
+            renderTargetWord(currentTypedText);
+            renderTypingDisplayBox();
+        }
+
+        function resetDojoStats(notify = false) {
+            dojoState.startTime = null;
+            dojoState.completedStrokes = 0;
+            dojoState.completedSeconds = 0;
+            dojoState.completedCount = 0;
+            dojoState.maxCpm = 0;
+            dojoState.lastCpm = 0;
+            dojoState.history = [];
+            clearTypingBufferSafely();
+            pickDojoWord();
+            updateDojoUI();
+            if (notify) showToast('수련장 타수 기록이 초기화되었습니다.', 'slate');
+        }
+
+        function calculateDojoAccuracy(typed, target) {
+            if (!typed || typed.length === 0) return 100;
+            let matched = 0;
+            const len = typed.length;
+            for (let i = 0; i < len; i++) {
+                if (i < target.length && typed[i] === target[i]) {
+                    matched++;
+                }
+            }
+            return Math.max(0, Math.min(100, Math.round((matched / len) * 100)));
+        }
+
+        function updateDojoUI() {
+            if (currentAppMode !== 'dojo') return;
+
+            let liveCpm = 0;
+            let elapsedSec = 0;
+            if (dojoState.startTime && currentTypedText.length > 0) {
+                elapsedSec = Math.max(0.25, (Date.now() - dojoState.startTime) / 1000);
+                const strokes = countKoreanStrokes(currentTypedText);
+                liveCpm = Math.min(2500, Math.round((strokes / elapsedSec) * 60));
+                document.getElementById('dojo-status-hint').textContent = `측정 중... 경과 ${elapsedSec.toFixed(1)}초 • 현재 ${strokes}타 입력`;
+            } else {
+                liveCpm = dojoState.lastCpm;
+                document.getElementById('dojo-status-hint').textContent = '첫 글자를 입력하면 실시간 타수 측정이 시작됩니다';
+            }
+
+            const avgCpm = dojoState.completedSeconds > 0
+                ? Math.round((dojoState.completedStrokes / dojoState.completedSeconds) * 60)
+                : liveCpm;
+            const acc = calculateDojoAccuracy(currentTypedText, currentWord);
+            const wpm = Math.round(liveCpm / 5);
+
+            document.getElementById('dojo-live-cpm').textContent = liveCpm;
+            document.getElementById('dojo-max-cpm').textContent = Math.max(dojoState.maxCpm, liveCpm);
+            document.getElementById('dojo-avg-cpm').textContent = avgCpm;
+            document.getElementById('dojo-accuracy').textContent = acc;
+
+            document.getElementById('dojo-last-cpm').textContent = dojoState.lastCpm;
+            document.getElementById('dojo-live-wpm').textContent = wpm;
+            document.getElementById('dojo-completed-count').textContent = dojoState.completedCount;
+            document.getElementById('dojo-total-strokes').textContent = formatNumber(dojoState.completedStrokes);
+
+            const historyEl = document.getElementById('dojo-history-list');
+            if (historyEl) {
+                if (dojoState.history.length === 0) {
+                    historyEl.innerHTML = `<div class="text-slate-500 text-center py-4">아직 완료한 문장이 없습니다. 예문을 입력해 보세요!</div>`;
+                } else {
+                    historyEl.innerHTML = dojoState.history.map(item => `
+                        <div class="bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2 flex items-center justify-between gap-2">
+                            <span class="text-slate-200 truncate max-w-[65%]">${escapeHtml(item.text)}</span>
+                            <span class="font-mono-num font-black text-emerald-400 shrink-0">${item.cpm} 타/분</span>
+                        </div>
+                    `).join('');
+                }
+            }
+        }
+
+        function handleDojoWordComplete() {
+            if (justCompleted) return;
+            const now = Date.now();
+            const elapsedSec = dojoState.startTime ? Math.max(0.3, (now - dojoState.startTime) / 1000) : 1.0;
+            const strokes = countKoreanStrokes(currentWord);
+            const cpm = Math.min(2500, Math.round((strokes / elapsedSec) * 60));
+
+            dojoState.lastCpm = cpm;
+            if (cpm > dojoState.maxCpm) dojoState.maxCpm = cpm;
+            dojoState.completedStrokes += strokes;
+            dojoState.completedSeconds += elapsedSec;
+            dojoState.completedCount += 1;
+            dojoState.startTime = null;
+
+            dojoState.history.unshift({ text: currentWord, cpm: cpm });
+            if (dojoState.history.length > 6) dojoState.history.pop();
+
+            SoundEngine.playCoin(cpm >= 400, false);
+
+            const stage = document.getElementById('typing-stage');
+            stage.classList.remove('hit-anim');
+            void stage.offsetWidth;
+            stage.classList.add('hit-anim');
+
+            showToast(`🎯 완료! ${cpm} 타/분 (소요 시간 ${elapsedSec.toFixed(1)}초)`, 'emerald');
+
+            clearTypingBufferSafely();
+            pickDojoWord();
+            updateDojoUI();
+        }
+
+        /**
+         * ============================================================================
+         * 4. PC 모드 / 모바일 모드 전환 스위치
+         * ============================================================================
+         */
+        function setViewMode(mode, notify = false) {
+            currentViewMode = (mode === 'mobile') ? 'mobile' : 'pc';
+            const pcBtn = document.getElementById('mode-btn-pc');
+            const mobileBtn = document.getElementById('mode-btn-mobile');
+
+            if (currentViewMode === 'mobile') {
+                document.body.classList.add('mobile-mode');
+                if (mobileBtn) {
+                    mobileBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-amber-500 text-slate-950 shadow cursor-pointer';
+                }
+                if (pcBtn) {
+                    pcBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer';
+                }
+                if (notify) showToast('📱 모바일 한 화면 최적화 모드로 전환되었습니다.', 'amber');
+            } else {
+                document.body.classList.remove('mobile-mode');
+                if (pcBtn) {
+                    pcBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-black transition flex items-center gap-1 bg-indigo-600 text-white shadow cursor-pointer';
+                }
+                if (mobileBtn) {
+                    mobileBtn.className = 'px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[11px] font-bold transition flex items-center gap-1 text-slate-400 hover:text-slate-200 cursor-pointer';
+                }
+                if (notify) showToast('🖥️ PC 2단 와이드 모드로 전환되었습니다.', 'sky');
+            }
+
+            scheduleTargetCenterRecalc();
+        }
+
+        /**
+         * ============================================================================
+         * 5. 숫자 축약 포맷터 및 핵심 계산 공식 (k, M, B, T, Qa, Qi)
+         * ============================================================================
+         */
+        function formatNumber(num) {
+            if (!isFinite(num) || isNaN(num)) return '0';
+            if (num < 1000) return Math.floor(num).toString();
+            const units = ['', 'k', 'M', 'B', 'T', 'Qa', 'Qi', 'sx', 'sp', 'oc'];
+            const order = Math.floor(Math.log10(num) / 3);
+            if (order >= units.length) return num.toExponential(2);
+            const unitName = units[order];
+            const scaled = num / Math.pow(10, order * 3);
+            return scaled.toFixed(2).replace(/\.00$/, '') + unitName;
+        }
+
+        function getPrestigeMultiplier() {
+            return 1 + (gameState.prestigeTokens * 0.25);
+        }
+
+        function getBaseClickGold() {
+            const lvl = gameState.upgrades.keyboard;
+            return Math.floor((10 + (lvl - 1) * 6) * Math.pow(1.06, lvl - 1));
+        }
+
+        function getCritChance() {
+            return Math.min(0.80, 0.05 + gameState.upgrades.keycap * 0.015);
+        }
+
+        function getCritMultiplier() {
+            return 2.0 + gameState.upgrades.switchLubing * 0.5;
+        }
+
+        function getComboMultiplier() {
+            const perComboBonus = 0.01 * (1 + gameState.upgrades.comboMaster);
+            return 1 + (gameState.combo * perComboBonus);
+        }
+
+        function getTierMultiplier() {
+            const tiers = getActiveWordTiers();
+            return tiers[gameState.selectedTier].multiplier;
+        }
+
+        function getExpectedWordGold() {
+            const base = getBaseClickGold();
+            const tierMult = getTierMultiplier();
+            const comboMult = getComboMultiplier();
+            const prestigeMult = getPrestigeMultiplier();
+            const feverMult = isFeverActive ? 2.0 : 1.0;
+            return Math.floor(base * tierMult * comboMult * prestigeMult * feverMult);
+        }
+
+        function getTotalGPS() {
+            let rawGps = 0;
+            BOT_DEFS.forEach(bot => {
+                rawGps += (gameState.bots[bot.id] || 0) * bot.baseGps;
+            });
+            const feverMult = isFeverActive ? 2.0 : 1.0;
+            return rawGps * getPrestigeMultiplier() * feverMult;
+        }
+
+        function getUpgradeCost(def) {
+            const lvl = gameState.upgrades[def.id];
+            return Math.floor(def.baseCost * Math.pow(def.costMult, lvl));
+        }
+
+        function getBotCost(def) {
+            const count = gameState.bots[def.id] || 0;
+            return Math.floor(def.baseCost * Math.pow(def.costMult, count));
+        }
+
+        function getClaimablePrestigeTokens() {
+            if (gameState.totalGoldEarned < 100000) return 0;
+            return Math.floor(Math.pow(gameState.totalGoldEarned / 100000, 0.55));
+        }
+
+        /**
+         * ============================================================================
+         * 6. 순수 <div> 기반 타이핑 디스플레이 & 한 줄 가로 중앙 정렬 엔진
+         * ============================================================================
+         */
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function activateDisplayBox() {
+            const box = document.getElementById('live-typing-display');
+            if (!box) return;
+            box.classList.add('ring-4', 'ring-amber-400/30');
+            setTimeout(() => box.classList.remove('ring-4', 'ring-amber-400/30'), 300);
+        }
+
+        function renderTypingDisplayBox() {
+            const contentEl = document.getElementById('typing-display-content');
+            if (!contentEl) return;
+
+            if (!currentTypedText || currentTypedText.length === 0) {
+                contentEl.innerHTML = `<span class="text-slate-500 text-xs sm:text-base font-medium">아래 키보드를 눌러 제시어를 입력하세요</span><span class="display-caret"></span>`;
+                return;
+            }
+
+            const isComposingSyllable = (typeof HangulAutomata !== 'undefined' && HangulAutomata.hasActive);
+            let html = '';
+
+            if (isComposingSyllable) {
+                const committedPart = currentTypedText.slice(0, -1);
+                const composingChar = currentTypedText.slice(-1);
+                if (committedPart.length > 0) {
+                    html += `<span class="text-white">${escapeHtml(committedPart)}</span>`;
+                }
+                html += `<span class="composing-syllable">${escapeHtml(composingChar)}</span>`;
+            } else {
+                html += `<span class="text-white">${escapeHtml(currentTypedText)}</span>`;
+            }
+
+            html += `<span class="display-caret"></span>`;
+            contentEl.innerHTML = html;
+        }
+
+        function pickNewWord() {
+            if (currentAppMode === 'dojo') {
+                pickDojoWord();
+                return;
+            }
+            const tiers = getActiveWordTiers();
+            const tier = tiers[gameState.selectedTier] || tiers[0];
+            let nextWord = currentWord;
+            while (nextWord === currentWord && tier.words.length > 1) {
+                nextWord = tier.words[Math.floor(Math.random() * tier.words.length)];
+            }
+            currentWord = nextWord;
+            renderTargetWord(currentTypedText);
+            renderTypingDisplayBox();
+            updateHUD();
+        }
+
+        function renderTargetWord(typedValue) {
+            const trackEl = document.getElementById('target-word-track');
+            if (!trackEl) return;
+
+            const activeIndex = Math.min(typedValue.length, Math.max(0, currentWord.length - 1));
+            let html = '';
+
+            for (let i = 0; i < currentWord.length; i++) {
+                const char = currentWord[i] === ' ' ? '&nbsp;' : escapeHtml(currentWord[i]);
+                const isCursor = (i === activeIndex);
+                const idAttr = isCursor ? 'id="active-char-node"' : '';
+
+                if (i < typedValue.length) {
+                    if (typedValue[i] === currentWord[i]) {
+                        html += `<span ${idAttr} class="text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">${char}</span>`;
+                    } else {
+                        html += `<span ${idAttr} class="text-rose-500 underline decoration-rose-500">${char}</span>`;
+                    }
+                } else if (isCursor) {
+                    html += `<span ${idAttr} class="text-amber-300 border-b-4 border-amber-400 active-char-cursor">${char}</span>`;
+                } else {
+                    html += `<span class="text-slate-100">${char}</span>`;
+                }
+            }
+            trackEl.innerHTML = html;
+            scheduleTargetCenterRecalc();
+        }
+
+        function centerActiveCharacter() {
+            const viewport = document.getElementById('target-word-viewport');
+            const display = document.getElementById('target-display');
+            const track = document.getElementById('target-word-track');
+            const activeNode = document.getElementById('active-char-node');
+            if (!viewport || !display || !track) return;
+
+            const viewportWidth = viewport.clientWidth;
+            const trackWidth = track.scrollWidth;
+
+            if (viewportWidth <= 0) return;
+
+            if (trackWidth <= viewportWidth - 24) {
+                const centerOffset = Math.max(0, (viewportWidth - trackWidth) / 2);
+                display.style.transform = `translateX(${centerOffset}px)`;
+                return;
+            }
+
+            if (activeNode) {
+                const charCenterInTrack = activeNode.offsetLeft + (activeNode.offsetWidth / 2);
+                const targetX = (viewportWidth / 2) - charCenterInTrack;
+                display.style.transform = `translateX(${targetX}px)`;
+            } else {
+                display.style.transform = 'translateX(16px)';
+            }
+        }
+
+        function scheduleTargetCenterRecalc() {
+            requestAnimationFrame(() => {
+                centerActiveCharacter();
+                requestAnimationFrame(centerActiveCharacter);
+            });
+        }
+
+        function clearTypingBufferSafely() {
+            justCompleted = true;
+            if (typeof HangulAutomata !== 'undefined') {
+                HangulAutomata.reset();
+            }
+            currentTypedText = '';
+            renderTypingDisplayBox();
+
+            if (completionUnlockTimer) clearTimeout(completionUnlockTimer);
+            completionUnlockTimer = setTimeout(() => {
+                justCompleted = false;
+            }, 80);
+        }
+
+        function handleWordComplete() {
+            if (justCompleted) return;
+            if (currentAppMode === 'dojo') {
+                handleDojoWordComplete();
+                return;
+            }
+
+            const isCrit = Math.random() < getCritChance();
+            const critMult = isCrit ? getCritMultiplier() : 1.0;
+            const earned = Math.floor(getExpectedWordGold() * critMult);
+
+            gameState.gold += earned;
+            gameState.totalGoldEarned += earned;
+            gameState.lifetimeGold += earned;
+            gameState.totalWordsTyped += 1;
+            gameState.combo += 1;
+            if (gameState.combo > gameState.maxCombo) {
+                gameState.maxCombo = gameState.combo;
+            }
+
+            if (!isFeverActive) {
+                feverGauge += 1;
+                if (feverGauge >= FEVER_MAX) {
+                    activateFeverTime();
+                }
+            }
+
+            SoundEngine.playCoin(isCrit, isFeverActive);
+            spawnFloatingGold(earned, isCrit);
+
+            const stage = document.getElementById('typing-stage');
+            stage.classList.remove('hit-anim');
+            void stage.offsetWidth;
+            stage.classList.add('hit-anim');
+
+            clearTypingBufferSafely();
+            pickNewWord();
+            renderShop();
+            saveGame();
+        }
+
+        function spawnFloatingGold(amount, isCrit) {
+            const container = document.getElementById('word-display-container');
+            if (!container) return;
+            const el = document.createElement('div');
+            const offsetX = (Math.random() - 0.5) * 120;
+            el.style.left = `calc(50% + ${offsetX}px)`;
+            el.style.top = '30%';
+
+            if (isCrit) {
+                el.className = 'floating-text font-black text-lg sm:text-2xl text-rose-400';
+                el.innerHTML = `<span class="text-[11px] bg-rose-600 text-white px-1.5 py-0.5 rounded mr-1">CRITICAL!</span> +${formatNumber(amount)} G`;
+            } else if (isFeverActive) {
+                el.className = 'floating-text font-black text-base sm:text-xl text-pink-400';
+                el.innerHTML = `🔥 +${formatNumber(amount)} G`;
+            } else {
+                el.className = 'floating-text font-bold text-sm sm:text-lg text-amber-300';
+                el.innerHTML = `+${formatNumber(amount)} G`;
+            }
+
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 1050);
+        }
+
+        function activateFeverTime() {
+            isFeverActive = true;
+            feverTimeLeft = FEVER_DURATION;
+            feverGauge = 0;
+            SoundEngine.playFeverStart();
+            document.getElementById('typing-stage').classList.add('fever-active');
+            showToast('🔥 피버 타임 발동! 15초간 모든 골드 획득량 2배!', 'amber');
+        }
+
+        function skipWord() {
+            if (currentAppMode === 'dojo') {
+                dojoState.startTime = null;
+            }
+            clearTypingBufferSafely();
+            pickNewWord();
+            if (currentAppMode === 'dojo') updateDojoUI();
+        }
+
+        /**
+         * ============================================================================
+         * 7. 상점 구매, 티어 선택, 환생 시스템
+         * ============================================================================
+         */
+        function buyUpgrade(id) {
+            const def = UPGRADE_DEFS.find(u => u.id === id);
+            if (!def) return;
+            const lvl = gameState.upgrades[id];
+            if (lvl >= def.maxLevel) return;
+
+            const cost = getUpgradeCost(def);
+            if (gameState.gold < cost) return;
+
+            gameState.gold -= cost;
+            gameState.upgrades[id] += 1;
+
+            if (id === 'dictionary') {
+                const tiers = getActiveWordTiers();
+                gameState.selectedTier = Math.min(gameState.upgrades.dictionary, tiers.length - 1);
+                clearTypingBufferSafely();
+                pickNewWord();
+                showToast(`📚 [${tiers[gameState.selectedTier].name}] 해금 완료!`, 'purple');
+            }
+
+            SoundEngine.playUpgrade();
+            updateHUD();
+            renderShop();
+            saveGame();
+        }
+
+        function buyBot(id) {
+            const def = BOT_DEFS.find(b => b.id === id);
+            if (!def) return;
+            const cost = getBotCost(def);
+            if (gameState.gold < cost) return;
+
+            gameState.gold -= cost;
+            gameState.bots[id] = (gameState.bots[id] || 0) + 1;
+
+            SoundEngine.playUpgrade();
+            updateHUD();
+            renderShop();
+            saveGame();
+        }
+
+        function selectTier(tierIndex) {
+            if (tierIndex > gameState.upgrades.dictionary) {
+                showToast('상점에서 [고급 단어 사전 해금]을 먼저 업그레이드하세요!', 'rose');
+                return;
+            }
+            gameState.selectedTier = tierIndex;
+            clearTypingBufferSafely();
+            pickNewWord();
+            saveGame();
+        }
+
+        function triggerPrestige() {
+            const claimable = getClaimablePrestigeTokens();
+            if (claimable <= 0) {
+                showToast('누적 골드 100k 이상부터 환생할 수 있습니다.', 'rose');
+                return;
+            }
+            openModal(
+                '타자 마스터 환생',
+                `현재 골드와 업그레이드를 초기화하고 <strong class="text-purple-300">마스터 증표 +${formatNumber(claimable)}개</strong>를 획득하시겠습니까?<br><span class="text-xs text-slate-400">(영구 골드 보너스가 +${formatNumber((gameState.prestigeTokens + claimable) * 25)}%가 됩니다)</span>`,
+                () => {
+                    const keepTokens = gameState.prestigeTokens + claimable;
+                    const keepLifetime = gameState.lifetimeGold;
+                    const keepWords = gameState.totalWordsTyped;
+                    const keepMaxCombo = gameState.maxCombo;
+
+                    gameState = getDefaultGameState();
+                    gameState.prestigeTokens = keepTokens;
+                    gameState.lifetimeGold = keepLifetime;
+                    gameState.totalWordsTyped = keepWords;
+                    gameState.maxCombo = keepMaxCombo;
+
+                    isFeverActive = false;
+                    feverGauge = 0;
+                    document.getElementById('typing-stage').classList.remove('fever-active');
+                    clearTypingBufferSafely();
+                    saveGame();
+                    pickNewWord();
+                    updateHUD();
+                    renderShop();
+                    SoundEngine.playFeverStart();
+                    showToast(`👑 환생 성공! 마스터 증표 ${formatNumber(keepTokens)}개 보유!`, 'purple');
+                }
+            );
+        }
+
+        /**
+         * ============================================================================
+         * 8. UI 렌더링 및 HUD 업데이트
+         * ============================================================================
+         */
+        function switchTab(tabName) {
+            activeTab = tabName;
+            ['upgrades', 'bots', 'prestige'].forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const panel = document.getElementById(`panel-${t}`);
+                if (t === tabName) {
+                    btn.className = 'py-2 rounded-xl text-xs sm:text-sm font-bold transition bg-slate-800 text-amber-400 shadow cursor-pointer';
+                    panel.classList.remove('hidden');
+                } else {
+                    btn.className = 'py-2 rounded-xl text-xs sm:text-sm font-bold transition text-slate-400 hover:text-slate-200 cursor-pointer';
+                    panel.classList.add('hidden');
+                }
+            });
+            renderShop();
+        }
+
+        function renderShop() {
+            const upgPanel = document.getElementById('panel-upgrades');
+            if (upgPanel) {
+                upgPanel.innerHTML = UPGRADE_DEFS.map(def => {
+                    const lvl = gameState.upgrades[def.id];
+                    const isMax = lvl >= def.maxLevel;
+                    const cost = getUpgradeCost(def);
+                    const canAfford = !isMax && gameState.gold >= cost;
+
+                    return `
+                        <div class="bg-slate-950/75 border border-slate-800/90 rounded-2xl p-3 flex items-center justify-between gap-2.5 hover:border-slate-700 transition">
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <div class="w-10 h-10 rounded-xl ${def.bg} border flex items-center justify-center ${def.color} text-base shrink-0 mt-0.5">
+                                    <i class="fa-solid ${def.icon}"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <h3 class="font-bold text-xs sm:text-sm text-slate-100">${def.name}</h3>
+                                        <span class="text-[10px] font-mono-num px-1.5 py-0.5 rounded-md bg-slate-800 text-slate-300">Lv.${lvl}${def.maxLevel < 999 ? '/' + def.maxLevel : ''}</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 leading-snug">${def.desc(lvl)}</p>
+                                </div>
+                            </div>
+                            <button 
+                                type="button"
+                                onclick="buyUpgrade('${def.id}')" 
+                                ${!canAfford ? 'disabled' : ''}
+                                class="keycap-btn shop-buy-btn px-3 py-2 rounded-xl text-xs font-black text-white shrink-0 min-w-[84px] text-center font-mono-num cursor-pointer"
+                            >
+                                ${isMax ? 'MAX' : `${formatNumber(cost)} G`}
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const botPanel = document.getElementById('panel-bots');
+            if (botPanel) {
+                botPanel.innerHTML = BOT_DEFS.map(def => {
+                    const count = gameState.bots[def.id] || 0;
+                    const cost = getBotCost(def);
+                    const canAfford = gameState.gold >= cost;
+                    const currentTotalGps = count * def.baseGps * getPrestigeMultiplier();
+
+                    return `
+                        <div class="bg-slate-950/75 border border-slate-800/90 rounded-2xl p-3 flex items-center justify-between gap-2.5 hover:border-slate-700 transition">
+                            <div class="flex items-start gap-2.5 min-w-0">
+                                <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center ${def.color} text-base shrink-0 mt-0.5">
+                                    <i class="fa-solid ${def.icon}"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <h3 class="font-bold text-xs sm:text-sm text-slate-100">${def.name}</h3>
+                                        <span class="text-[10px] font-mono-num px-1.5 py-0.5 rounded-md bg-emerald-950 text-emerald-300 border border-emerald-800/50">${count}대</span>
+                                    </div>
+                                    <p class="text-[11px] text-slate-400 mt-0.5 leading-snug">${def.desc}</p>
+                                    <div class="text-[10px] text-emerald-400/90 font-mono-num mt-0.5">생산량: +${formatNumber(currentTotalGps)} G/s</div>
+                                </div>
+                            </div>
+                            <button 
+                                type="button"
+                                onclick="buyBot('${def.id}')" 
+                                ${!canAfford ? 'disabled' : ''}
+                                class="keycap-btn shop-buy-btn px-3 py-2 rounded-xl text-xs font-black text-white shrink-0 min-w-[84px] text-center font-mono-num cursor-pointer"
+                            >
+                                ${formatNumber(cost)} G
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            const claimable = getClaimablePrestigeTokens();
+            document.getElementById('prestige-current-tokens').textContent = formatNumber(gameState.prestigeTokens);
+            document.getElementById('prestige-current-bonus').textContent = formatNumber(gameState.prestigeTokens * 25);
+            document.getElementById('prestige-claimable').textContent = formatNumber(claimable);
+            document.getElementById('btn-do-prestige').disabled = claimable <= 0;
+        }
+
+        function updateHUD() {
+            document.getElementById('hud-gold').textContent = formatNumber(gameState.gold);
+            document.getElementById('hud-total-gold').textContent = formatNumber(gameState.lifetimeGold);
+            document.getElementById('hud-total-words').textContent = formatNumber(gameState.totalWordsTyped);
+            document.getElementById('hud-gps').textContent = formatNumber(getTotalGPS());
+            document.getElementById('hud-prestige').textContent = formatNumber(gameState.prestigeTokens);
+            document.getElementById('hud-prestige-bonus').textContent = formatNumber(gameState.prestigeTokens * 25);
+
+            document.getElementById('stat-base-gold').textContent = formatNumber(getBaseClickGold());
+            document.getElementById('stat-crit').textContent = `${(getCritChance() * 100).toFixed(1)}% (${getCritMultiplier().toFixed(1)}x)`;
+            document.getElementById('expected-gold').textContent = `${formatNumber(getExpectedWordGold())} G`;
+
+            const tiers = getActiveWordTiers();
+            const tierNames = currentTypingLang === 'en'
+                ? ['Tier 1', 'Tier 2', 'Tier 3', 'Tier 4']
+                : ['초급', '중급', '고급', '전설'];
+
+            tiers.forEach((t, idx) => {
+                const btn = document.getElementById(`tier-btn-${idx}`);
+                if (!btn) return;
+                const unlocked = idx <= gameState.upgrades.dictionary;
+                if (!unlocked) {
+                    btn.textContent = `${tierNames[idx]} 🔒`;
+                    btn.className = 'px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800/60 text-slate-500 cursor-not-allowed';
+                } else if (gameState.selectedTier === idx) {
+                    btn.textContent = `${tierNames[idx]} (${t.multiplier}x)`;
+                    btn.className = 'px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30 cursor-pointer';
+                } else {
+                    btn.textContent = `${tierNames[idx]} (${t.multiplier}x)`;
+                    btn.className = 'px-2 sm:px-2.5 py-1 rounded-lg text-[11px] sm:text-xs font-bold transition bg-slate-800 hover:bg-slate-700 text-slate-200 cursor-pointer';
+                }
+            });
+
+            if (currentAppMode === 'tycoon') {
+                const curTier = tiers[gameState.selectedTier] || tiers[0];
+                const langTag = currentTypingLang === 'en' ? '🇺🇸 영어' : '🇰🇷 한글';
+                document.getElementById('current-tier-label').textContent = `[ ${langTag} • ${curTier.name} • 보상 배율 ${curTier.multiplier}배 ]`;
+            }
+
+            document.getElementById('combo-badge').textContent = `${gameState.combo} COMBO`;
+            const comboBonusPct = Math.round((getComboMultiplier() - 1) * 100);
+            document.getElementById('combo-bonus-text').textContent = `보너스 +${comboBonusPct}%`;
+
+            const feverBar = document.getElementById('fever-bar');
+            const feverLabel = document.getElementById('fever-status-label');
+            if (isFeverActive) {
+                const pct = (feverTimeLeft / FEVER_DURATION) * 100;
+                feverBar.style.width = `${pct}%`;
+                feverLabel.innerHTML = `<i class="fa-solid fa-fire-flame-curved animate-bounce text-pink-400"></i> <span class="text-pink-400 font-black">FEVER (2x)! ${feverTimeLeft.toFixed(1)}s</span>`;
+            } else {
+                const pct = (feverGauge / FEVER_MAX) * 100;
+                feverBar.style.width = `${pct}%`;
+                feverLabel.innerHTML = `<i class="fa-solid fa-fire"></i> <span>피버: <span class="font-mono-num">${feverGauge}/${FEVER_MAX}</span></span>`;
+            }
+        }
+
+        /**
+         * ============================================================================
+         * 9. 회원가입 / 로그인 / 계정별 localStorage 저장 시스템
+         *    - 게스트 상태일 때는 localStorage에 절대 저장하지 않음 (나가면 완전 초기화)
+         * ============================================================================
+         */
+        const USERS_STORAGE_KEY = 'typing_tycoon_users';
+        const ACTIVE_USER_KEY = 'typing_tycoon_active_user';
+
+        function getSaveKeyForUser(nickname) {
+            return `typing_tycoon_user_${nickname}`;
+        }
+
+        function getAllUsers() {
+            try {
+                const raw = localStorage.getItem(USERS_STORAGE_KEY);
+                return raw ? JSON.parse(raw) : {};
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function saveAllUsers(usersObj) {
+            try {
+                localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(usersObj));
+            } catch (e) {}
+        }
+
+        function updateAccountHeaderUI() {
+            const statusEl = document.getElementById('hud-account-status');
+            const accBtnLabel = document.getElementById('btn-account-label');
+            const saveBadge = document.getElementById('save-status-badge');
+
+            if (currentUserNickname) {
+                statusEl.innerHTML = `<span class="px-2 py-0.5 rounded-lg bg-indigo-500/20 border border-indigo-400/50 text-amber-300">👑 ${escapeHtml(currentUserNickname)}</span>`;
+                if (accBtnLabel) accBtnLabel.textContent = '내 계정';
+                if (saveBadge) {
+                    saveBadge.className = 'text-emerald-400 font-bold font-mono-num';
+                    saveBadge.textContent = 'ACCOUNT AUTO-SAVE (5s)';
+                }
+            } else {
+                statusEl.innerHTML = `<span class="px-2 py-0.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300">⚠️ 게스트 (나가면 초기화)</span>`;
+                if (accBtnLabel) accBtnLabel.textContent = '계정';
+                if (saveBadge) {
+                    saveBadge.className = 'text-amber-400 font-bold font-mono-num';
+                    saveBadge.textContent = 'GUEST (미저장 • 나가면 초기화)';
+                }
+            }
+        }
+
+        function openAccountHub() {
+            const loggedInView = document.getElementById('account-logged-in-view');
+            const guestView = document.getElementById('account-guest-view');
+
+            if (currentUserNickname) {
+                saveGame();
+                guestView.classList.add('hidden');
+                loggedInView.classList.remove('hidden');
+                document.getElementById('logged-in-nickname-title').textContent = `👑 ${currentUserNickname} 님`;
+                document.getElementById('acc-summary-gold').textContent = `${formatNumber(gameState.gold)} G`;
+                document.getElementById('acc-summary-prestige').textContent = `${formatNumber(gameState.prestigeTokens)} 개`;
+                document.getElementById('acc-summary-combo').textContent = `${formatNumber(gameState.maxCombo)} COMBO`;
+            } else {
+                loggedInView.classList.add('hidden');
+                guestView.classList.remove('hidden');
+                switchAuthMode('login');
+                document.getElementById('auth-nickname').value = '';
+                document.getElementById('auth-password').value = '';
+                document.getElementById('auth-nick-count').textContent = '0 / 16자 (모든 문자 허용)';
+                document.getElementById('auth-pw-count').textContent = '0 / 30자 (영어·숫자만)';
+                hideAuthError();
+            }
+
+            const modal = document.getElementById('auth-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function openAuthModal(mode = 'login') {
+            openAccountHub();
+            if (!currentUserNickname) {
+                switchAuthMode(mode);
+            }
+        }
+
+        function closeAuthModal() {
+            const modal = document.getElementById('auth-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function switchAuthMode(mode) {
+            authMode = mode;
+            const loginTab = document.getElementById('auth-tab-login');
+            const signupTab = document.getElementById('auth-tab-signup');
+            const titleEl = document.getElementById('auth-modal-title');
+            const submitBtn = document.getElementById('auth-submit-btn');
+
+            hideAuthError();
+
+            if (mode === 'login') {
+                loginTab.className = 'py-2 rounded-lg text-xs sm:text-sm font-bold bg-indigo-600 text-white transition cursor-pointer';
+                signupTab.className = 'py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer';
+                titleEl.textContent = '계정 로그인';
+                submitBtn.textContent = '로그인하고 데이터 불러오기';
+            } else {
+                signupTab.className = 'py-2 rounded-lg text-xs sm:text-sm font-bold bg-amber-500 text-slate-950 transition cursor-pointer';
+                loginTab.className = 'py-2 rounded-lg text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer';
+                titleEl.textContent = '새 계정 회원가입';
+                submitBtn.textContent = '회원가입 및 계정 생성';
+            }
+        }
+
+        function showAuthError(msg) {
+            const box = document.getElementById('auth-error-msg');
+            box.textContent = msg;
+            box.classList.remove('hidden');
+        }
+
+        function hideAuthError() {
+            const box = document.getElementById('auth-error-msg');
+            box.classList.add('hidden');
+        }
+
+        document.getElementById('auth-nickname').addEventListener('input', (e) => {
+            const len = e.target.value.length;
+            document.getElementById('auth-nick-count').textContent = `${len} / 16자 (모든 문자 허용)`;
+            hideAuthError();
+        });
+
+        document.getElementById('auth-password').addEventListener('input', (e) => {
+            const val = e.target.value;
+            const hintEl = document.getElementById('auth-pw-hint');
+            document.getElementById('auth-pw-count').textContent = `${val.length} / 30자 (영어·숫자만)`;
+            hideAuthError();
+
+            if (val.length > 0 && !/^[a-zA-Z0-9]*$/.test(val)) {
+                hintEl.className = 'text-[11px] text-rose-400 font-bold mt-1';
+                hintEl.textContent = '⚠ 영어(a-z, A-Z)와 숫자(0-9) 이외의 문자가 포함되어 있습니다!';
+            } else {
+                hintEl.className = 'text-[11px] text-slate-500 mt-1';
+                hintEl.textContent = '* 비밀번호는 영어 대소문자와 숫자만 사용할 수 있습니다.';
+            }
+        });
+
+        function submitAuthForm(e) {
+            e.preventDefault();
+            const rawNick = document.getElementById('auth-nickname').value;
+            const password = document.getElementById('auth-password').value;
+
+            if (!rawNick || rawNick.trim().length === 0) {
+                showAuthError('닉네임을 입력해 주세요. (공백만으로는 생성할 수 없습니다)');
+                return;
+            }
+            if (rawNick.length > 16) {
+                showAuthError('닉네임은 최대 16글자까지만 입력할 수 있습니다.');
+                return;
+            }
+
+            if (!password || password.length === 0) {
+                showAuthError('비밀번호를 입력해 주세요.');
+                return;
+            }
+            if (!/^[a-zA-Z0-9]{1,30}$/.test(password)) {
+                showAuthError('비밀번호는 영어(a-z, A-Z)와 숫자(0-9)만 사용하여 최대 30글자로 입력해야 합니다.');
+                return;
+            }
+
+            const users = getAllUsers();
+
+            if (authMode === 'signup') {
+                if (users[rawNick]) {
+                    showAuthError('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해 주세요.');
+                    return;
+                }
+
+                if (currentUserNickname) {
+                    saveGame();
+                }
+
+                users[rawNick] = {
+                    nickname: rawNick,
+                    password: password,
+                    createdAt: Date.now()
+                };
+                saveAllUsers(users);
+
+                currentUserNickname = rawNick;
+                try {
+                    localStorage.setItem(ACTIVE_USER_KEY, rawNick);
+                } catch (err) {}
+                saveGame();
+                updateAccountHeaderUI();
+                closeAuthModal();
+                showToast(`🎉 [${rawNick}] 님 회원가입 완료! 현재 진행 데이터가 계정에 영구 저장되었습니다.`, 'emerald');
+            } else {
+                const account = users[rawNick];
+                if (!account) {
+                    showAuthError('존재하지 않는 닉네임입니다. 먼저 회원가입을 진행해 주세요.');
+                    return;
+                }
+                if (account.password !== password) {
+                    showAuthError('비밀번호가 일치하지 않습니다.');
+                    return;
+                }
+
+                if (currentUserNickname) {
+                    saveGame();
+                }
+
+                currentUserNickname = rawNick;
+                try {
+                    localStorage.setItem(ACTIVE_USER_KEY, rawNick);
+                } catch (err) {}
+
+                gameState = getDefaultGameState();
+                isFeverActive = false;
+                feverGauge = 0;
+                document.getElementById('typing-stage').classList.remove('fever-active');
+
+                loadAccountGame();
+                updateAccountHeaderUI();
+                clearTypingBufferSafely();
+                pickNewWord();
+                updateHUD();
+                renderShop();
+                closeAuthModal();
+                showToast(`👋 환영합니다, [${rawNick}] 님! 계정에 저장된 데이터를 불러왔습니다.`, 'sky');
+            }
+        }
+
+        function logoutUser() {
+            if (!currentUserNickname) return;
+            saveGame();
+            const prevName = currentUserNickname;
+            currentUserNickname = null;
+            try {
+                localStorage.removeItem(ACTIVE_USER_KEY);
+            } catch (e) {}
+
+            gameState = getDefaultGameState();
+            isFeverActive = false;
+            feverGauge = 0;
+            document.getElementById('typing-stage').classList.remove('fever-active');
+
+            updateAccountHeaderUI();
+            clearTypingBufferSafely();
+            pickNewWord();
+            updateHUD();
+            renderShop();
+            showToast(`로그아웃되었습니다. (${prevName} 님의 데이터는 안전하게 보관되며 게스트는 초기화됩니다)`, 'slate');
+        }
+
+        function saveGame() {
+            if (!currentUserNickname) return;
+            try {
+                gameState.lastSaveTime = Date.now();
+                localStorage.setItem(getSaveKeyForUser(currentUserNickname), JSON.stringify(gameState));
+            } catch (e) {
+                console.error('Save failed:', e);
+            }
+        }
+
+        function manualSave() {
+            if (!currentUserNickname) {
+                showToast('⚠️ 게스트 상태는 저장되지 않습니다. 회원가입 또는 로그인해 주세요!', 'amber');
+                openAuthModal('signup');
+                return;
+            }
+            saveGame();
+            showToast(`💾 [${currentUserNickname}] 계정에 진행 상황이 저장되었습니다!`, 'sky');
+        }
+
+        function loadAccountGame() {
+            if (!currentUserNickname) return;
+            try {
+                const raw = localStorage.getItem(getSaveKeyForUser(currentUserNickname));
+                if (!raw) return;
+                const saved = JSON.parse(raw);
+                const defaults = getDefaultGameState();
+                gameState = {
+                    ...defaults,
+                    ...saved,
+                    upgrades: { ...defaults.upgrades, ...(saved.upgrades || {}) },
+                    bots: { ...defaults.bots, ...(saved.bots || {}) }
+                };
+
+                const now = Date.now();
+                const offlineSec = Math.min(28800, Math.floor((now - (gameState.lastSaveTime || now)) / 1000));
+                const gps = getTotalGPS();
+                if (offlineSec > 10 && gps > 0) {
+                    const offlineGold = Math.floor(gps * offlineSec * 0.5);
+                    if (offlineGold > 0) {
+                        gameState.gold += offlineGold;
+                        gameState.totalGoldEarned += offlineGold;
+                        gameState.lifetimeGold += offlineGold;
+                        setTimeout(() => {
+                            showToast(`🌙 오프라인 방치 보상: +${formatNumber(offlineGold)} G 획득!`, 'emerald');
+                        }, 500);
+                    }
+                }
+            } catch (err) {
+                console.error('Save load failed:', err);
+            }
+        }
+
+        function openResetModal() {
+            const label = currentUserNickname ? `[${currentUserNickname}] 계정의` : '현재 게스트의';
+            openModal(
+                '게임 데이터 초기화',
+                `${label} 모든 골드, 업그레이드, 마스터 증표가 초기화됩니다. 정말 진행하시겠습니까?`,
+                () => {
+                    if (currentUserNickname) {
+                        try {
+                            localStorage.removeItem(getSaveKeyForUser(currentUserNickname));
+                        } catch (e) {}
+                    }
+                    gameState = getDefaultGameState();
+                    isFeverActive = false;
+                    feverGauge = 0;
+                    document.getElementById('typing-stage').classList.remove('fever-active');
+                    clearTypingBufferSafely();
+                    pickNewWord();
+                    updateHUD();
+                    renderShop();
+                    showToast('데이터가 초기화되었습니다.', 'rose');
+                }
+            );
+        }
+
+        /**
+         * ============================================================================
+         * 10. 메인 틱 루프 & 창 리사이즈 핸들러
+         * ============================================================================
+         */
+        window.addEventListener('resize', () => {
+            scheduleTargetCenterRecalc();
+        });
+
+        let lastTick = Date.now();
+        setInterval(() => {
+            const now = Date.now();
+            const dt = (now - lastTick) / 1000;
+            lastTick = now;
+
+            const gps = getTotalGPS();
+            if (gps > 0) {
+                const gained = gps * dt;
+                gameState.gold += gained;
+                gameState.totalGoldEarned += gained;
+                gameState.lifetimeGold += gained;
+            }
+
+            if (isFeverActive) {
+                feverTimeLeft -= dt;
+                if (feverTimeLeft <= 0) {
+                    isFeverActive = false;
+                    feverTimeLeft = 0;
+                    document.getElementById('typing-stage').classList.remove('fever-active');
+                    showToast('피버 타임이 종료되었습니다.', 'slate');
+                }
+            }
+
+            updateHUD();
+            if (currentAppMode === 'dojo') {
+                updateDojoUI();
+            }
+        }, 100);
+
+        setInterval(() => {
+            renderShop();
+        }, 1000);
+
+        setInterval(() => {
+            if (currentUserNickname) {
+                saveGame();
+            }
+        }, 5000);
+
+        window.addEventListener('beforeunload', () => {
+            if (currentUserNickname) {
+                saveGame();
+            }
+        });
+
+        /**
+         * ============================================================================
+         * 11. 모달, 토스트 및 안내 팁
+         * ============================================================================
+         */
+        function toggleSound() {
+            SoundEngine.muted = !SoundEngine.muted;
+            const icon = document.getElementById('icon-sound');
+            icon.className = SoundEngine.muted ? 'fa-solid fa-volume-xmark text-rose-400' : 'fa-solid fa-volume-high';
+            showToast(SoundEngine.muted ? '🔇 효과음이 음소거되었습니다.' : '🔊 효과음이 켜졌습니다.', 'slate');
+        }
+
+        let modalConfirmCallback = null;
+        function openModal(title, descHtml, onConfirm) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-desc').innerHTML = descHtml;
+            modalConfirmCallback = onConfirm;
+            const modal = document.getElementById('custom-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            modalConfirmCallback = null;
+        }
+
+        document.getElementById('modal-confirm').addEventListener('click', () => {
+            if (modalConfirmCallback) modalConfirmCallback();
+            closeModal();
+        });
+
+        function showToast(msg, color = 'amber') {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const toast = document.createElement('div');
+            const colorMap = {
+                amber: 'border-amber-500/50 text-amber-200',
+                purple: 'border-purple-500/50 text-purple-200',
+                emerald: 'border-emerald-500/50 text-emerald-200',
+                rose: 'border-rose-500/50 text-rose-200',
+                sky: 'border-sky-500/50 text-sky-200',
+                slate: 'border-slate-600 text-slate-200'
+            };
+            toast.className = `bg-slate-900/95 backdrop-blur-md border ${colorMap[color] || colorMap.amber} px-4 py-2.5 rounded-2xl shadow-xl text-xs font-bold transition-all duration-300 transform translate-y-2 opacity-0`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 2800);
+        }
+
+        const TIPS = [
+            '팁: 상단 [🇰🇷 한글 | 🇺🇸 영어] 스위치로 한글/영어 타자를 언제든 바꿀 수 있습니다!',
+            '팁: 게스트 상태에서는 나가면 초기화됩니다. 회원가입 후 로그인하면 계정에 영구 저장됩니다!',
+            '팁: 상단 [🖥️ PC | 📱 모바일] 스위치를 눌러 언제든 한 화면 최적화 레이아웃을 전환할 수 있습니다!',
+            '팁: 콤보를 20회 달성하면 15초간 골드 2배 피버 타임이 발동합니다!',
+            '팁: 모바일과 태블릿에서도 기기 OS 키보드가 뜨지 않고 내장 키보드로 쾌적하게 칠 수 있습니다!'
+        ];
+        let tipIdx = 0;
+        setInterval(() => {
+            tipIdx = (tipIdx + 1) % TIPS.length;
+            const tipEl = document.getElementById('tip-text');
+            if (tipEl) tipEl.textContent = TIPS[tipIdx];
+        }, 8000);
+
+        /**
+         * ============================================================================
+         * 12. 두벌식 한글 오토마타 & 내장 가상 키보드 (물리 키보드 100% 연동)
+         * ============================================================================
+         */
+        const HangulAutomata = {
+            CHO: ['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'],
+            JUNG: ['ㅏ','ㅐ','ㅑ','ㅒ','ㅓ','ㅔ','ㅕ','ㅖ','ㅗ','ㅘ','ㅙ','ㅚ','ㅛ','ㅜ','ㅝ','ㅞ','ㅟ','ㅠ','ㅡ','ㅢ','ㅣ'],
+            JONG: ['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'],
+            COMPLEX_VOWEL: {
+                'ㅗㅏ': 'ㅘ', 'ㅗㅐ': 'ㅙ', 'ㅗㅣ': 'ㅚ',
+                'ㅜㅓ': 'ㅝ', 'ㅜㅔ': 'ㅞ', 'ㅜㅣ': 'ㅟ',
+                'ㅡㅣ': 'ㅢ'
+            },
+            COMPLEX_JONG: {
+                'ㄱㅅ': 'ㄳ', 'ㄴㅈ': 'ㄵ', 'ㄴㅎ': 'ㄶ',
+                'ㄹㄱ': 'ㄺ', 'ㄹㅁ': 'ㄻ', 'ㄹㅂ': 'ㄼ', 'ㄹㅅ': 'ㄽ', 'ㄹㅌ': 'ㄾ', 'ㄹㅍ': 'ㄿ', 'ㄹㅎ': 'ㅀ',
+                'ㅂㅅ': 'ㅄ'
+            },
+            SPLIT_JONG: {
+                'ㄳ': ['ㄱ', 'ㅅ'], 'ㄵ': ['ㄴ', 'ㅈ'], 'ㄶ': ['ㄴ', 'ㅎ'],
+                'ㄺ': ['ㄹ', 'ㄱ'], 'ㄻ': ['ㄹ', 'ㅁ'], 'ㄼ': ['ㄹ', 'ㅂ'], 'ㄽ': ['ㄹ', 'ㅅ'], 'ㄾ': ['ㄹ', 'ㅌ'], 'ㄿ': ['ㄹ', 'ㅍ'], 'ㅀ': ['ㄹ', 'ㅎ'],
+                'ㅄ': ['ㅂ', 'ㅅ']
+            },
+            cho: -1,
+            jung: -1,
+            jong: 0,
+            hasActive: false,
+
+            reset() {
+                this.cho = -1;
+                this.jung = -1;
+                this.jong = 0;
+                this.hasActive = false;
+            },
+
+            composeChar() {
+                if (this.cho >= 0 && this.jung >= 0) {
+                    const code = 0xAC00 + (this.cho * 21 + this.jung) * 28 + this.jong;
+                    return String.fromCharCode(code);
+                }
+                if (this.cho >= 0) return this.CHO[this.cho];
+                if (this.jung >= 0) return this.JUNG[this.jung];
+                return '';
+            },
+
+            commit(text) {
+                if (!this.hasActive) {
+                    this.reset();
+                    return text;
+                }
+                const c = this.composeChar();
+                const baseText = text.length > 0 ? text.slice(0, -1) : '';
+                this.reset();
+                return baseText + c;
+            },
+
+            inputJamo(jamo, currentText) {
+                const isConsonant = this.CHO.includes(jamo);
+                const isVowel = this.JUNG.includes(jamo);
+
+                if (!isConsonant && !isVowel) {
+                    return this.commit(currentText) + jamo;
+                }
+
+                if (!this.hasActive) {
+                    if (isConsonant) {
+                        this.cho = this.CHO.indexOf(jamo);
+                        this.jung = -1;
+                        this.jong = 0;
+                        this.hasActive = true;
+                        return currentText + this.composeChar();
+                    } else {
+                        return currentText + jamo;
+                    }
+                }
+
+                const baseText = currentText.length > 0 ? currentText.slice(0, -1) : '';
+
+                if (this.cho >= 0 && this.jung < 0) {
+                    if (isVowel) {
+                        this.jung = this.JUNG.indexOf(jamo);
+                        return baseText + this.composeChar();
+                    } else {
+                        const flushed = baseText + this.composeChar();
+                        this.cho = this.CHO.indexOf(jamo);
+                        this.jung = -1;
+                        this.jong = 0;
+                        this.hasActive = true;
+                        return flushed + this.composeChar();
+                    }
+                }
+
+                if (this.cho >= 0 && this.jung >= 0 && this.jong === 0) {
+                    if (isVowel) {
+                        const curJungChar = this.JUNG[this.jung];
+                        const combined = this.COMPLEX_VOWEL[curJungChar + jamo];
+                        if (combined) {
+                            this.jung = this.JUNG.indexOf(combined);
+                            return baseText + this.composeChar();
+                        } else {
+                            const flushed = baseText + this.composeChar();
+                            this.reset();
+                            return flushed + jamo;
+                        }
+                    } else {
+                        const jongIdx = this.JONG.indexOf(jamo);
+                        if (jongIdx > 0) {
+                            this.jong = jongIdx;
+                            return baseText + this.composeChar();
+                        } else {
+                            const flushed = baseText + this.composeChar();
+                            this.cho = this.CHO.indexOf(jamo);
+                            this.jung = -1;
+                            this.jong = 0;
+                            this.hasActive = true;
+                            return flushed + this.composeChar();
+                        }
+                    }
+                }
+
+                if (this.cho >= 0 && this.jung >= 0 && this.jong > 0) {
+                    const curJongChar = this.JONG[this.jong];
+                    if (isConsonant) {
+                        const combinedJong = this.COMPLEX_JONG[curJongChar + jamo];
+                        if (combinedJong) {
+                            this.jong = this.JONG.indexOf(combinedJong);
+                            return baseText + this.composeChar();
+                        } else {
+                            const flushed = baseText + this.composeChar();
+                            this.cho = this.CHO.indexOf(jamo);
+                            this.jung = -1;
+                            this.jong = 0;
+                            this.hasActive = true;
+                            return flushed + this.composeChar();
+                        }
+                    } else {
+                        if (this.SPLIT_JONG[curJongChar]) {
+                            const [firstJong, secondJong] = this.SPLIT_JONG[curJongChar];
+                            this.jong = this.JONG.indexOf(firstJong);
+                            const flushed = baseText + this.composeChar();
+                            this.cho = this.CHO.indexOf(secondJong);
+                            this.jung = this.JUNG.indexOf(jamo);
+                            this.jong = 0;
+                            this.hasActive = true;
+                            return flushed + this.composeChar();
+                        } else {
+                            this.jong = 0;
+                            const flushed = baseText + this.composeChar();
+                            this.cho = this.CHO.indexOf(curJongChar);
+                            this.jung = this.JUNG.indexOf(jamo);
+                            this.jong = 0;
+                            this.hasActive = true;
+                            return flushed + this.composeChar();
+                        }
+                    }
+                }
+
+                return currentText + jamo;
+            },
+
+            backspace(currentText) {
+                if (!this.hasActive || currentText.length === 0) {
+                    this.reset();
+                    return currentText.slice(0, -1);
+                }
+
+                const baseText = currentText.slice(0, -1);
+
+                if (this.jong > 0) {
+                    const curJongChar = this.JONG[this.jong];
+                    if (this.SPLIT_JONG[curJongChar]) {
+                        this.jong = this.JONG.indexOf(this.SPLIT_JONG[curJongChar][0]);
+                    } else {
+                        this.jong = 0;
+                    }
+                    return baseText + this.composeChar();
+                }
+
+                if (this.jung >= 0) {
+                    this.jung = -1;
+                    return baseText + this.composeChar();
+                }
+
+                this.reset();
+                return baseText;
+            }
+        };
+
+        const VirtualKeyboard = {
+            isKorean: true,
+            isShift: false,
+
+            ROWS: [
+                [
+                    { code: 'Digit1', normal: '1', shift: '!' },
+                    { code: 'Digit2', normal: '2', shift: '@' },
+                    { code: 'Digit3', normal: '3', shift: '#' },
+                    { code: 'Digit4', normal: '4', shift: '$' },
+                    { code: 'Digit5', normal: '5', shift: '%' },
+                    { code: 'Digit6', normal: '6', shift: '^' },
+                    { code: 'Digit7', normal: '7', shift: '&' },
+                    { code: 'Digit8', normal: '8', shift: '*' },
+                    { code: 'Digit9', normal: '9', shift: '(' },
+                    { code: 'Digit0', normal: '0', shift: ')' },
+                    { code: 'Backspace', label: '⌫', type: 'backspace', flexGrow: 1.4 }
+                ],
+                [
+                    { code: 'KeyQ', ko: 'ㅂ', koShift: 'ㅃ', en: 'q', enShift: 'Q' },
+                    { code: 'KeyW', ko: 'ㅈ', koShift: 'ㅉ', en: 'w', enShift: 'W' },
+                    { code: 'KeyE', ko: 'ㄷ', koShift: 'ㄸ', en: 'e', enShift: 'E' },
+                    { code: 'KeyR', ko: 'ㄱ', koShift: 'ㄲ', en: 'r', enShift: 'R' },
+                    { code: 'KeyT', ko: 'ㅅ', koShift: 'ㅆ', en: 't', enShift: 'T' },
+                    { code: 'KeyY', ko: 'ㅛ', koShift: 'ㅛ', en: 'y', enShift: 'Y' },
+                    { code: 'KeyU', ko: 'ㅕ', koShift: 'ㅕ', en: 'u', enShift: 'U' },
+                    { code: 'KeyI', ko: 'ㅑ', koShift: 'ㅑ', en: 'i', enShift: 'I' },
+                    { code: 'KeyO', ko: 'ㅐ', koShift: 'ㅒ', en: 'o', enShift: 'O' },
+                    { code: 'KeyP', ko: 'ㅔ', koShift: 'ㅖ', en: 'p', enShift: 'P' }
+                ],
+                [
+                    { code: 'KeyA', ko: 'ㅁ', koShift: 'ㅁ', en: 'a', enShift: 'A' },
+                    { code: 'KeyS', ko: 'ㄴ', koShift: 'ㄴ', en: 's', enShift: 'S' },
+                    { code: 'KeyD', ko: 'ㅇ', koShift: 'ㅇ', en: 'd', enShift: 'D' },
+                    { code: 'KeyF', ko: 'ㄹ', koShift: 'ㄹ', en: 'f', enShift: 'F' },
+                    { code: 'KeyG', ko: 'ㅎ', koShift: 'ㅎ', en: 'g', enShift: 'G' },
+                    { code: 'KeyH', ko: 'ㅗ', koShift: 'ㅗ', en: 'h', enShift: 'H' },
+                    { code: 'KeyJ', ko: 'ㅓ', koShift: 'ㅓ', en: 'j', enShift: 'J' },
+                    { code: 'KeyK', ko: 'ㅏ', koShift: 'ㅏ', en: 'k', enShift: 'K' },
+                    { code: 'KeyL', ko: 'ㅣ', koShift: 'ㅣ', en: 'l', enShift: 'L' },
+                    { code: 'Enter', label: '↵', type: 'enter', flexGrow: 1.5 }
+                ],
+                [
+                    { code: 'ShiftLeft', label: '⇧', type: 'shift', flexGrow: 1.4 },
+                    { code: 'KeyZ', ko: 'ㅋ', koShift: 'ㅋ', en: 'z', enShift: 'Z' },
+                    { code: 'KeyX', ko: 'ㅌ', koShift: 'ㅌ', en: 'x', enShift: 'X' },
+                    { code: 'KeyC', ko: 'ㅊ', koShift: 'ㅊ', en: 'c', enShift: 'C' },
+                    { code: 'KeyV', ko: 'ㅍ', koShift: 'ㅍ', en: 'v', enShift: 'V' },
+                    { code: 'KeyB', ko: 'ㅠ', koShift: 'ㅠ', en: 'b', enShift: 'B' },
+                    { code: 'KeyN', ko: 'ㅜ', koShift: 'ㅜ', en: 'n', enShift: 'N' },
+                    { code: 'KeyM', ko: 'ㅡ', koShift: 'ㅡ', en: 'm', enShift: 'M' },
+                    { code: 'Comma', normal: ',', shift: '<' },
+                    { code: 'Period', normal: '.', shift: '>' }
+                ],
+                [
+                    { code: 'LangToggle', label: '한/영', type: 'lang', flexGrow: 1.4 },
+                    { code: 'Space', label: 'SPACE', type: 'space', flexGrow: 4.6 },
+                    { code: 'Slash', normal: '/', shift: '?' }
+                ]
+            ],
+
+            render() {
+                const container = document.getElementById('virtual-keyboard-rows');
+                const badge = document.getElementById('vk-mode-badge');
+                if (!container) return;
+
+                if (badge) {
+                    badge.textContent = this.isKorean
+                        ? (this.isShift ? '한글 (쌍자음/이중모음)' : '한글 (두벌식)')
+                        : (this.isShift ? 'ENGLISH (대문자)' : 'English (소문자)');
+                }
+
+                container.innerHTML = this.ROWS.map(row => {
+                    const keysHtml = row.map(keyObj => {
+                        const flexStyle = keyObj.flexGrow ? `style="flex-grow: ${keyObj.flexGrow};"` : '';
+                        let mainLabel = '';
+                        let subLabel = '';
+                        let extraClass = '';
+
+                        if (keyObj.type === 'shift') {
+                            mainLabel = keyObj.label;
+                            if (this.isShift) extraClass = 'vk-active-toggle';
+                        } else if (keyObj.type === 'lang') {
+                            mainLabel = this.isKorean ? '한/영' : 'ENG';
+                            extraClass = 'text-amber-300 border-amber-500/40';
+                        } else if (keyObj.type) {
+                            mainLabel = keyObj.label;
+                        } else if (keyObj.ko) {
+                            if (this.isKorean) {
+                                mainLabel = this.isShift ? keyObj.koShift : keyObj.ko;
+                                subLabel = this.isShift ? keyObj.enShift : keyObj.en;
+                            } else {
+                                mainLabel = this.isShift ? keyObj.enShift : keyObj.en;
+                                subLabel = this.isShift ? keyObj.koShift : keyObj.ko;
+                            }
+                        } else {
+                            mainLabel = this.isShift ? keyObj.shift : keyObj.normal;
+                            subLabel = this.isShift ? keyObj.normal : keyObj.shift;
+                        }
+
+                        return `
+                            <button 
+                                type="button"
+                                ${flexStyle}
+                                data-vk-code="${keyObj.code}"
+                                onpointerdown="event.preventDefault(); VirtualKeyboard.handleVirtualPress('${keyObj.code}', false)"
+                                class="vk-key ${extraClass} h-9 sm:h-11 rounded-lg flex flex-col items-center justify-center relative text-xs sm:text-sm font-bold text-slate-100 cursor-pointer px-0.5"
+                            >
+                                <span>${escapeHtml(mainLabel)}</span>
+                                ${subLabel ? `<span class="vk-sub-char text-[9px] text-slate-400 leading-none mt-0.5 hidden sm:inline">${escapeHtml(subLabel)}</span>` : ''}
+                            </button>
+                        `;
+                    }).join('');
+
+                    return `<div class="vk-row">${keysHtml}</div>`;
+                }).join('');
+            },
+
+            findKeyDef(code) {
+                for (const row of this.ROWS) {
+                    const found = row.find(k => k.code === code);
+                    if (found) return found;
+                }
+                return null;
+            },
+
+            handleVirtualPress(code, fromPhysical = false) {
+                if (justCompleted) return;
+                const keyDef = this.findKeyDef(code);
+                if (!keyDef) return;
+
+                SoundEngine.playKeyClick();
+
+                if (keyDef.type === 'shift') {
+                    this.isShift = !this.isShift;
+                    this.render();
+                    return;
+                }
+
+                if (keyDef.type === 'lang') {
+                    currentTypedText = HangulAutomata.commit(currentTypedText);
+                    this.isKorean = !this.isKorean;
+                    this.render();
+                    renderTargetWord(currentTypedText);
+                    renderTypingDisplayBox();
+                    return;
+                }
+
+                if (keyDef.type === 'backspace') {
+                    currentTypedText = HangulAutomata.backspace(currentTypedText);
+                    if (currentAppMode === 'dojo' && currentTypedText.length === 0) {
+                        dojoState.startTime = null;
+                    }
+                    renderTargetWord(currentTypedText);
+                    renderTypingDisplayBox();
+                    if (currentAppMode === 'dojo') updateDojoUI();
+                    return;
+                }
+
+                if (keyDef.type === 'enter') {
+                    currentTypedText = HangulAutomata.commit(currentTypedText);
+                    renderTargetWord(currentTypedText);
+                    renderTypingDisplayBox();
+                    if (currentTypedText === currentWord) {
+                        handleWordComplete();
+                    } else {
+                        const displayBox = document.getElementById('live-typing-display');
+                        if (displayBox) {
+                            displayBox.classList.remove('shake-anim');
+                            void displayBox.offsetWidth;
+                            displayBox.classList.add('shake-anim');
+                        }
+                        if (currentAppMode === 'tycoon' && gameState.combo > 0) {
+                            gameState.combo = 0;
+                            showToast('오타 발생! 콤보가 초기화되었습니다.', 'rose');
+                            updateHUD();
+                        }
+                    }
+                    return;
+                }
+
+                if (currentAppMode === 'dojo' && !dojoState.startTime) {
+                    dojoState.startTime = Date.now();
+                }
+
+                if (keyDef.type === 'space') {
+                    currentTypedText = HangulAutomata.commit(currentTypedText) + ' ';
+                } else if (keyDef.ko) {
+                    if (this.isKorean) {
+                        const jamo = this.isShift ? keyDef.koShift : keyDef.ko;
+                        currentTypedText = HangulAutomata.inputJamo(jamo, currentTypedText);
+                    } else {
+                        const ch = this.isShift ? keyDef.enShift : keyDef.en;
+                        currentTypedText = HangulAutomata.commit(currentTypedText) + ch;
+                    }
+                } else {
+                    const ch = this.isShift ? keyDef.shift : keyDef.normal;
+                    currentTypedText = HangulAutomata.commit(currentTypedText) + ch;
+                }
+
+                if (this.isShift && !fromPhysical) {
+                    this.isShift = false;
+                    this.render();
+                }
+
+                renderTargetWord(currentTypedText);
+                renderTypingDisplayBox();
+                if (currentAppMode === 'dojo') updateDojoUI();
+
+                const autoSubmit = document.getElementById('auto-submit-toggle').checked;
+                if (autoSubmit && currentTypedText === currentWord) {
+                    handleWordComplete();
+                }
+            },
+
+            highlightPhysicalKey(code, isDown) {
+                const btn = document.querySelector(`[data-vk-code="${code}"]`);
+                if (btn) {
+                    if (isDown) btn.classList.add('pressed');
+                    else btn.classList.remove('pressed');
+                }
+            }
+        };
+
+        function isAnyModalOpen() {
+            const authOpen = !document.getElementById('auth-modal').classList.contains('hidden');
+            const rankOpen = !document.getElementById('ranking-modal').classList.contains('hidden');
+            const customOpen = !document.getElementById('custom-modal').classList.contains('hidden');
+            return authOpen || rankOpen || customOpen;
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (isAnyModalOpen()) return;
+            if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+                VirtualKeyboard.highlightPhysicalKey('ShiftLeft', true);
+                if (!VirtualKeyboard.isShift) {
+                    VirtualKeyboard.isShift = true;
+                    VirtualKeyboard.render();
+                }
+                return;
+            }
+
+            if (e.code === 'HangulMode' || e.key === 'HangulMode') {
+                e.preventDefault();
+                VirtualKeyboard.handleVirtualPress('LangToggle', true);
+                return;
+            }
+
+            const keyDef = VirtualKeyboard.findKeyDef(e.code);
+            if (keyDef) {
+                e.preventDefault();
+                VirtualKeyboard.highlightPhysicalKey(e.code, true);
+                VirtualKeyboard.handleVirtualPress(e.code, true);
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+                VirtualKeyboard.highlightPhysicalKey('ShiftLeft', false);
+                if (VirtualKeyboard.isShift) {
+                    VirtualKeyboard.isShift = false;
+                    VirtualKeyboard.render();
+                }
+            } else {
+                VirtualKeyboard.highlightPhysicalKey(e.code, false);
+            }
+        });
+
+        /**
+         * ============================================================================
+         * 13. 랭킹보드 (리더보드) 시스템
+         * ============================================================================
+         */
+        let currentRankingTab = 'gold'; // 'gold' | 'prestige' | 'combo'
+
+        const NPC_RANKERS = [
+            { nickname: '타자신화_청축왕', lifetimeGold: 850000000, prestigeTokens: 92, maxCombo: 340, totalWordsTyped: 14200, isNpc: true },
+            { nickname: '광속타이피스트', lifetimeGold: 120000000, prestigeTokens: 45, maxCombo: 215, totalWordsTyped: 6850, isNpc: true },
+            { nickname: '키캡수집가', lifetimeGold: 18500000, prestigeTokens: 19, maxCombo: 148, totalWordsTyped: 3120, isNpc: true },
+            { nickname: '한글타자장인', lifetimeGold: 2400000, prestigeTokens: 7, maxCombo: 95, totalWordsTyped: 1240, isNpc: true },
+            { nickname: '새싹코더', lifetimeGold: 150000, prestigeTokens: 1, maxCombo: 42, totalWordsTyped: 310, isNpc: true }
+        ];
+
+        function openRankingModal() {
+            if (currentUserNickname) {
+                saveGame();
+            }
+            renderRankingBoard();
+            const modal = document.getElementById('ranking-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeRankingModal() {
+            const modal = document.getElementById('ranking-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function switchRankingTab(tab) {
+            currentRankingTab = tab;
+            const tabs = ['gold', 'prestige', 'combo'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`rank-tab-${t}`);
+                if (!btn) return;
+                if (t === tab) {
+                    btn.className = 'py-2 rounded-xl text-xs sm:text-sm font-black bg-amber-500 text-slate-950 shadow transition cursor-pointer';
+                } else {
+                    btn.className = 'py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-400 hover:text-slate-200 transition cursor-pointer';
+                }
+            });
+            renderRankingBoard();
+        }
+
+        function collectAllRankingEntries() {
+            const entries = [];
+            const users = getAllUsers();
+
+            Object.keys(users).forEach(nick => {
+                const isMe = (currentUserNickname === nick);
+                let data = null;
+                if (isMe) {
+                    data = gameState;
+                } else {
+                    try {
+                        const raw = localStorage.getItem(getSaveKeyForUser(nick));
+                        data = raw ? JSON.parse(raw) : getDefaultGameState();
+                    } catch (e) {
+                        data = getDefaultGameState();
+                    }
+                }
+                entries.push({
+                    nickname: nick,
+                    lifetimeGold: Number(data.lifetimeGold || 0),
+                    prestigeTokens: Number(data.prestigeTokens || 0),
+                    maxCombo: Number(data.maxCombo || 0),
+                    totalWordsTyped: Number(data.totalWordsTyped || 0),
+                    isMe: isMe,
+                    isGuest: false,
+                    isNpc: false
+                });
+            });
+
+            if (!currentUserNickname) {
+                entries.push({
+                    nickname: '게스트 (나 • 미저장)',
+                    lifetimeGold: Number(gameState.lifetimeGold || 0),
+                    prestigeTokens: Number(gameState.prestigeTokens || 0),
+                    maxCombo: Number(gameState.maxCombo || 0),
+                    totalWordsTyped: Number(gameState.totalWordsTyped || 0),
+                    isMe: true,
+                    isGuest: true,
+                    isNpc: false
+                });
+            }
+
+            NPC_RANKERS.forEach(npc => {
+                entries.push({ ...npc, isMe: false, isGuest: false });
+            });
+
+            entries.sort((a, b) => {
+                if (currentRankingTab === 'gold') {
+                    return b.lifetimeGold - a.lifetimeGold || b.prestigeTokens - a.prestigeTokens;
+                } else if (currentRankingTab === 'prestige') {
+                    return b.prestigeTokens - a.prestigeTokens || b.lifetimeGold - a.lifetimeGold;
+                } else {
+                    return b.maxCombo - a.maxCombo || b.lifetimeGold - a.lifetimeGold;
+                }
+            });
+
+            return entries;
+        }
+
+        function renderRankingBoard() {
+            const listEl = document.getElementById('ranking-list-container');
+            const summaryEl = document.getElementById('my-rank-summary');
+            if (!listEl || !summaryEl) return;
+
+            const entries = collectAllRankingEntries();
+            const myIndex = entries.findIndex(item => item.isMe);
+            const myEntry = myIndex >= 0 ? entries[myIndex] : null;
+
+            if (myEntry) {
+                const metricText = currentRankingTab === 'gold'
+                    ? `누적 골드 <strong class="text-amber-400 font-mono-num">${formatNumber(myEntry.lifetimeGold)} G</strong>`
+                    : currentRankingTab === 'prestige'
+                        ? `마스터 증표 <strong class="text-purple-400 font-mono-num">${formatNumber(myEntry.prestigeTokens)} 개</strong>`
+                        : `최고 콤보 <strong class="text-rose-400 font-mono-num">${formatNumber(myEntry.maxCombo)} COMBO</strong>`;
+
+                summaryEl.innerHTML = `
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="px-2.5 py-1 rounded-lg bg-indigo-600 text-white font-black font-mono-num">내 순위: ${myIndex + 1}위</span>
+                        <span class="font-bold text-slate-200">${escapeHtml(myEntry.nickname)}</span>
+                        ${myEntry.isGuest ? '<span class="text-[11px] text-amber-300">(회원가입 시 영구 기록!)</span>' : ''}
+                    </div>
+                    <div class="text-slate-300">${metricText}</div>
+                `;
+            }
+
+            listEl.innerHTML = entries.map((item, idx) => {
+                const rank = idx + 1;
+                let rankBadge = `<span class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 font-black font-mono-num flex items-center justify-center text-xs shrink-0">${rank}</span>`;
+                if (rank === 1) {
+                    rankBadge = `<span class="w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-300 to-amber-500 text-slate-950 font-black flex items-center justify-center text-sm shadow-md shadow-amber-500/30 shrink-0" title="1위">🥇</span>`;
+                } else if (rank === 2) {
+                    rankBadge = `<span class="w-8 h-8 rounded-xl bg-gradient-to-br from-slate-200 to-slate-400 text-slate-950 font-black flex items-center justify-center text-sm shrink-0" title="2위">🥈</span>`;
+                } else if (rank === 3) {
+                    rankBadge = `<span class="w-8 h-8 rounded-xl bg-gradient-to-br from-amber-600 to-orange-800 text-white font-black flex items-center justify-center text-sm shrink-0" title="3위">🥉</span>`;
+                }
+
+                const rowHighlight = item.isMe
+                    ? 'bg-indigo-950/70 border-indigo-400/70 shadow-md shadow-indigo-950/40'
+                    : 'bg-slate-950/75 border-slate-800/90';
+
+                const tagBadge = item.isMe
+                    ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500 text-white font-black">ME</span>`
+                    : item.isNpc
+                        ? `<span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-bold">NPC</span>`
+                        : `<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700/50 font-bold">USER</span>`;
+
+                let primaryStat = '';
+                if (currentRankingTab === 'gold') {
+                    primaryStat = `<div class="text-sm sm:text-base font-black text-amber-400 font-mono-num">${formatNumber(item.lifetimeGold)} G</div>`;
+                } else if (currentRankingTab === 'prestige') {
+                    primaryStat = `<div class="text-sm sm:text-base font-black text-purple-400 font-mono-num">👑 ${formatNumber(item.prestigeTokens)} 개</div>`;
+                } else {
+                    primaryStat = `<div class="text-sm sm:text-base font-black text-rose-400 font-mono-num">🔥 ${formatNumber(item.maxCombo)} COMBO</div>`;
+                }
+
+                return `
+                    <div class="border ${rowHighlight} rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-3 transition">
+                        <div class="flex items-center gap-3 min-w-0">
+                            ${rankBadge}
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-bold text-sm text-white truncate">${escapeHtml(item.nickname)}</span>
+                                    ${tagBadge}
+                                </div>
+                                <div class="text-[11px] text-slate-400 font-mono-num mt-0.5">
+                                    증표 ${formatNumber(item.prestigeTokens)}개 • 최고 ${formatNumber(item.maxCombo)}콤보 • 타자 ${formatNumber(item.totalWordsTyped)}회
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            ${primaryStat}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function initGame() {
+            const initialMode = (window.innerWidth <= 860) ? 'mobile' : 'pc';
+            setViewMode(initialMode, false);
+
+            try {
+                localStorage.removeItem('typing_tycoon_save_guest');
+            } catch (e) {}
+
+            try {
+                const savedActiveUser = localStorage.getItem(ACTIVE_USER_KEY);
+                const users = getAllUsers();
+                if (savedActiveUser && users[savedActiveUser]) {
+                    currentUserNickname = savedActiveUser;
+                    loadAccountGame();
+                } else {
+                    currentUserNickname = null;
+                    localStorage.removeItem(ACTIVE_USER_KEY);
+                    gameState = getDefaultGameState();
+                }
+            } catch (e) {
+                currentUserNickname = null;
+                gameState = getDefaultGameState();
+            }
+
+            updateAccountHeaderUI();
+            VirtualKeyboard.render();
+            pickNewWord();
+            updateHUD();
+            renderShop();
+            scheduleTargetCenterRecalc();
+        }
+
+        if (document.readyState === 'loading') {
+            window.addEventListener('DOMContentLoaded', initGame);
+        } else {
+            initGame();
+        }
+    </script>
+</body>
+</html>
